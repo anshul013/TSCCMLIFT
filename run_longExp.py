@@ -144,6 +144,8 @@ parser.add_argument("--positionalE",  type=str2bool, nargs='?', const=False, def
 parser.add_argument("--modified",  type=str2bool, nargs='?', const=True, default=True)
 parser.add_argument("--RIN",  type=str2bool, nargs='?', const=False, default=False)
 
+# Add this line in the argument parser section
+parser.add_argument('--cuda', type=int, default=0, help='cuda device number')
 
 args = parser.parse_args()
 
