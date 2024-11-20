@@ -312,7 +312,12 @@ class Exp_CCM(Exp_Basic):
         # Move tensors to the same device
         prob = prob.to(self.device)
         simMatrix = simMatrix.to(self.device)
+        # Debug prints to check shapes
+        print("Prob shape:", prob.shape)
+        print("SimMatrix shape:", simMatrix.shape)
         membership = concrete_bern(prob)  #[n_vars, n_clusters]
+        # Debug prints after processing
+        print("Membership shape:", membership.shape)
         # membership = prob
         temp_1 = torch.mm(membership.t(), simMatrix) 
         SAS = torch.mm(temp_1, membership)
