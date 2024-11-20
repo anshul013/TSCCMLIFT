@@ -284,6 +284,8 @@ class Cluster_assigner(nn.Module):
         x_emb = self.linear(x).reshape(-1, self.d_model)      #[bs*n_vars, d_model]
         bn = x_emb.shape[0]
         bs = max(int(bn/n_vars), 1) 
+        print("x_emb shape:", x_emb.shape)
+        print("cluster_emb shape:", cluster_emb.shape)
         prob = torch.mm(self.l2norm(x_emb), self.l2norm(cluster_emb).t()).reshape(bs, n_vars, self.n_cluster)
         # prob: [bs, n_vars, n_cluster]
         prob_temp = prob.reshape(-1, self.n_cluster)
