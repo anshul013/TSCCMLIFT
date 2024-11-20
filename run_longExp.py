@@ -33,6 +33,8 @@ parser.add_argument('--train_only', type=bool, required=False, default=False, he
 parser.add_argument('--model_id', type=str, required=True, default='test', help='model id')
 parser.add_argument('--model', type=str, required=True, default='TSMixer',
                     help='model name, options: [Autoformer, Informer, Transformer]')
+parser.add_argument('--model_exp', type=str, required=True, default='CCM',
+                    help='Exp name, options: [CCM, LIFT, CCM_LIFT]')
 
 # data loader
 parser.add_argument('--data', type=str, required=True, default='ETTm1', help='dataset type')
@@ -189,7 +191,7 @@ print('Args in experiment:')
 print(args)
 
 # Select experiment class based on model
-if args.model == 'CCM':
+if args.model_exp == 'CCM':
     Exp = Exp_CCM
 else:
     Exp = Exp_Main
@@ -201,7 +203,7 @@ else:
 if args.is_training:
     for ii in range(args.itr):
        # setting record of experiments
-        if args.model == 'CCM':
+        if args.model_exp == 'CCM':
             setting = '{}_{}_il{}_ol{}_pl{}_ratio{}_dm{}_nh{}_el{}_itr{}'.format(
                 args.model_id,
                 args.model,
