@@ -290,23 +290,45 @@ class Exp_CCM(Exp_Basic):
         return SimMatrix
         
     
+    # def get_similarity_matrix(self, batch_x):
+    #     # Move tensors to the same device
+    #     batch_x = batch_x.to(self.device)
+    #     print("batch_x shape:", batch_x.shape)
+    #     sample = batch_x.squeeze(-1)  #[bsz, in_len]
+    #     print("sample shape:", sample.shape)
+    #     diff = sample.unsqueeze(1) - sample.unsqueeze(0)
+    #     print("diff shape:", diff.shape)
+    #     # Compute the Euclidean distance (squared)
+    #     dist_squared = torch.sum(diff ** 2, dim=-1)  #[bsz, bsz]
+    #     print("dist_squared shape:", dist_squared.shape)
+    #     param = torch.max(dist_squared)
+    #     euc_similarity = torch.exp(-5 * dist_squared /param )
+    #     # Debug print
+    #     print("Similarity matrix shape:", euc_similarity.shape)
+    #     return euc_similarity    
     def get_similarity_matrix(self, batch_x):
-        # Move tensors to the same device
-        batch_x = batch_x.to(self.device)
-        print("batch_x shape:", batch_x.shape)
-        sample = batch_x.squeeze(-1)  #[bsz, in_len]
-        print("sample shape:", sample.shape)
-        diff = sample.unsqueeze(1) - sample.unsqueeze(0)
-        print("diff shape:", diff.shape)
-        # Compute the Euclidean distance (squared)
-        dist_squared = torch.sum(diff ** 2, dim=-1)  #[bsz, bsz]
-        print("dist_squared shape:", dist_squared.shape)
-        param = torch.max(dist_squared)
-        euc_similarity = torch.exp(-5 * dist_squared /param )
-        # Debug print
-        print("Similarity matrix shape:", euc_similarity.shape)
-        return euc_similarity    
+        # Ensure input is on the correct device
+        batch_x = batch_x.to(self.device)  # [batch_size, seq_len, n_vars]
         
+        # Transpose to get variables in the right dimension
+        batch_x = batch_x.transpose(1, 2)  # Now [batch_size, n_vars, seq_len]
+    
+        # Calculate mean over batch and time dimensions
+        vars_mean = batch_x.mean(dim=0)  # [n_vars, seq_len]
+    
+        # Calculate pairwise distances between variables
+        diff = vars_mean.unsqueeze(0) - vars_mean.unsqueeze(1)  # [n_vars, n_vars, seq_len]
+        dist_squared = torch.sum(diff ** 2, dim=-1)  # [n_vars, n_vars]
+    
+        # Calculate similarity
+        param = torch.max(dist_squared)
+        euc_similarity = torch.exp(-5 * dist_squared / param)  # [n_vars, n_vars]
+    
+        # Debug prints
+        print("Final similarity matrix shape:", euc_similarity.shape)
+        
+        return euc_similarity
+    
      
     def similarity_loss_batch(self, prob, simMatrix):
         def concrete_bern(prob, temp = 0.07):
