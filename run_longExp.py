@@ -87,7 +87,6 @@ parser.add_argument('--pretrain_head', type=bool, default=False, help='pretrain 
 parser.add_argument('--patch_len', type=int, default=16, help='patch length (L_seg)')
 parser.add_argument('--max_seq_len', type=int, default=1024, help="maximum number of sequence_length")
 parser.add_argument('--padding_patch', type=str, default='end', help='None: None; end: padding on the end')
-parser.add_argument('--n_heads', type=int, default=8, help='num of heads')
 
 # Mixers
 parser.add_argument('--num_blocks', type=int, default=3, help='number of mixer blocks to be used in TSMixer')
