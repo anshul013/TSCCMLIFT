@@ -276,7 +276,7 @@ class Cluster_assigner(nn.Module):
         self.p2c = CrossAttention(d_model, n_heads=1)
         
         
-    def forward(self, x, cluster_emb):     
+    def forward(self, x, _):     
         # x: [bs, seq_len, n_vars]
         # cluster_emb: [n_cluster, d_model]
         n_vars = x.shape[-1]
@@ -287,8 +287,6 @@ class Cluster_assigner(nn.Module):
         print("x_emb shape:", x_emb.shape)
         print("self.cluster_emb shape:", self.cluster_emb.shape)
         print("self.cluster_emb:", self.cluster_emb)
-        print("cluster_emb shape:", cluster_emb.shape)
-        print("cluster_emb:", cluster_emb)
         prob = torch.mm(self.l2norm(x_emb), self.l2norm(self.cluster_emb).t()).reshape(bs, n_vars, self.n_cluster)
         # prob: [bs, n_vars, n_cluster]
         prob_temp = prob.reshape(-1, self.n_cluster)
@@ -298,7 +296,7 @@ class Cluster_assigner(nn.Module):
         mask = self.concrete_bern(prob_avg)   #[bs, n_vars, n_cluster]
 
         x_emb_ = x_emb.reshape(bs, n_vars,-1)
-        cluster_emb_ = cluster_emb.repeat(bs,1,1)
+        cluster_emb_ = self.cluster_emb.repeat(bs,1,1)
         cluster_emb = self.p2c(cluster_emb_, x_emb_, x_emb_, mask=mask.transpose(0,1))
 
         return prob_avg, cluster_emb
