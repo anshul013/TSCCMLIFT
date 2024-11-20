@@ -269,7 +269,7 @@ class Cluster_assigner(nn.Module):
         # linear_layer = [nn.Linear(seq_len, d_model), nn.ReLU(), nn.Linear(d_model, d_model)]
         # self.linear = MLP(seq_len, d_model)
         self.linear = nn.Linear(seq_len, d_model)
-        self.cluster_emb = torch.empty(self.n_cluster, self.d_model).to(device) #nn.Parameter(torch.rand(n_cluster, in_dim * out_dim), requires_grad=True)
+        self.cluster_emb = nn.Parameter(torch.randn(n_cluster, d_model)).to(device) #nn.Parameter(torch.rand(n_cluster, in_dim * out_dim), requires_grad=True)
         nn.init.kaiming_uniform_(self.cluster_emb, a=math.sqrt(5))
         # nn.init.kaiming_uniform_(self.linear.weight, a=math.sqrt(5))
         self.l2norm = lambda x: F.normalize(x, dim=1, p=2)
