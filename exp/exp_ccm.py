@@ -308,7 +308,7 @@ class Exp_CCM(Exp_Basic):
     #     return euc_similarity    
     def get_similarity_matrix(self, batch_x):
         # Ensure input is on the correct device
-        batch_x = batch_x.to(self.device)  # [batch_size, seq_len, n_vars]
+        batch_x = batch_x.to(self.device).float()  # [batch_size, seq_len, n_vars]
         
         # Transpose to get variables in the right dimension
         batch_x = batch_x.transpose(1, 2)  # Now [batch_size, n_vars, seq_len]
@@ -323,10 +323,10 @@ class Exp_CCM(Exp_Basic):
         # Calculate similarity
         param = torch.max(dist_squared)
         euc_similarity = torch.exp(-5 * dist_squared / param)  # [n_vars, n_vars]
-    
+        euc_similarity = euc_similarity.to(self.device)
         # Debug prints
         print("Final similarity matrix shape:", euc_similarity.shape)
-        
+        print("Final similarity matrix:", euc_similarity)
         return euc_similarity
     
      
@@ -346,6 +346,7 @@ class Exp_CCM(Exp_Basic):
         membership = concrete_bern(prob)  #[n_vars, n_clusters]
         # Debug prints after processing
         print("Membership shape:", membership.shape)
+        print("Membership:", membership)
         # membership = prob
         temp_1 = torch.mm(membership.t(), simMatrix) 
         SAS = torch.mm(temp_1, membership)
