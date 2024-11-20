@@ -291,6 +291,8 @@ class Exp_CCM(Exp_Basic):
         
     
     def get_similarity_matrix(self, batch_x):
+        # Move tensors to the same device
+        batch_x = batch_x.to(self.device)
         sample = batch_x.squeeze(-1)  #[bsz, in_len]
         diff = sample.unsqueeze(1) - sample.unsqueeze(0)
     # Compute the Euclidean distance (squared)
@@ -307,6 +309,9 @@ class Exp_CCM(Exp_Basic):
             prob = torch.log(prob + 1e-10) - torch.log(1.0 - prob + 1e-10)
             prob_bern = ((prob + random_noise) / temp).sigmoid()
             return prob_bern
+        # Move tensors to the same device
+        prob = prob.to(self.device)
+        simMatrix = simMatrix.to(self.device)
         membership = concrete_bern(prob)  #[n_vars, n_clusters]
         # membership = prob
         temp_1 = torch.mm(membership.t(), simMatrix) 
