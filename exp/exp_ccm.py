@@ -293,12 +293,18 @@ class Exp_CCM(Exp_Basic):
     def get_similarity_matrix(self, batch_x):
         # Move tensors to the same device
         batch_x = batch_x.to(self.device)
+        print("batch_x shape:", batch_x.shape)
         sample = batch_x.squeeze(-1)  #[bsz, in_len]
+        print("sample shape:", sample.shape)
         diff = sample.unsqueeze(1) - sample.unsqueeze(0)
-    # Compute the Euclidean distance (squared)
+        print("diff shape:", diff.shape)
+        # Compute the Euclidean distance (squared)
         dist_squared = torch.sum(diff ** 2, dim=-1)  #[bsz, bsz]
+        print("dist_squared shape:", dist_squared.shape)
         param = torch.max(dist_squared)
         euc_similarity = torch.exp(-5 * dist_squared /param )
+        # Debug print
+        print("Similarity matrix shape:", euc_similarity.shape)
         return euc_similarity    
         
      
