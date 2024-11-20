@@ -4,7 +4,7 @@ import pandas as pd
 import os
 import torch
 from torch.utils.data import Dataset, DataLoader
-from sklearn.preprocessing import StandardScaler
+from utils.ccm.tools import StandardScaler
 from utils.timefeatures import time_features
 import warnings
 
