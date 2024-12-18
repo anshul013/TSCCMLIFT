@@ -325,8 +325,8 @@ class Exp_CCM(Exp_Basic):
         euc_similarity = torch.exp(-5 * dist_squared / param)  # [n_vars, n_vars]
         euc_similarity = euc_similarity.to(self.device)
         # Debug prints
-        print("Final similarity matrix shape:", euc_similarity.shape)
-        print("Final similarity matrix:", euc_similarity)
+        # print("Final similarity matrix shape:", euc_similarity.shape)
+        # print("Final similarity matrix:", euc_similarity)
         return euc_similarity
     
      
@@ -341,12 +341,12 @@ class Exp_CCM(Exp_Basic):
         prob = prob.to(self.device)
         simMatrix = simMatrix.to(self.device)
         # Debug prints to check shapes
-        print("Prob shape:", prob.shape)
-        print("SimMatrix shape:", simMatrix.shape)
+        # print("Prob shape:", prob.shape)
+        # print("SimMatrix shape:", simMatrix.shape)
         membership = concrete_bern(prob)  #[n_vars, n_clusters]
         # Debug prints after processing
-        print("Membership shape:", membership.shape)
-        print("Membership:", membership)
+        # print("Membership shape:", membership.shape)
+        # print("Membership:", membership)
         # membership = prob
         temp_1 = torch.mm(membership.t(), simMatrix) 
         SAS = torch.mm(temp_1, membership)
