@@ -9,52 +9,73 @@ class MlpBlockTimesteps(nn.Module):
         super(MlpBlockTimesteps, self).__init__()
         self.normalization_layer = nn.BatchNorm1d(seq_len)
         self.linear_layer = nn.Linear(seq_len, seq_len)
+        
         if activation=="gelu":
             self.activation_layer = nn.GELU()
         elif activation=="relu":
             self.activation_layer = nn.ReLU()
         else:
             self.activation_layer = None
+            
         self.dropout_layer = nn.Dropout(dropout_factor)
 
     def forward(self, x):
-        y = self.normalization_layer(x)
+        # x: [batch, time, channel]
+        y = x.transpose(1, 2)  # [batch, channel, time]
+        y = self.normalization_layer(y)
+        y = y.transpose(1, 2)  # [batch, time, channel]
+        
         y = torch.swapaxes(y, 1, 2)
         y = self.linear_layer(y)
         y = self.activation_layer(y)
         y = self.dropout_layer(y)
         y = torch.swapaxes(y, 1, 2)
+        
         return x + y
 
 class MlpBlockFeatures(nn.Module):
     """MLP for features"""
     def __init__(self, channels, mlp_dim, dropout_factor, activation, single_layer_mixer):
         super(MlpBlockFeatures, self).__init__()
-        self.normalization_layer = nn.BatchNorm1d(channels)
         self.single_layer_mixer = single_layer_mixer
+        
+        # Changed: BatchNorm1d expects the number of channels/features
+        self.normalization_layer = nn.BatchNorm1d(mlp_dim if not single_layer_mixer else channels)
+        
         if self.single_layer_mixer:
             self.linear_layer1 = nn.Linear(channels, channels)
         else:
             self.linear_layer1 = nn.Linear(channels, mlp_dim)
             self.linear_layer2 = nn.Linear(mlp_dim, channels)
+            
         if activation=="gelu":
             self.activation_layer = nn.GELU()
         elif activation=="relu":
             self.activation_layer = nn.ReLU()
         else:
             self.activation_layer = None
+            
         self.dropout_layer = nn.Dropout(dropout_factor)
 
     def forward(self, x):
-        y = torch.swapaxes(x, 1, 2)
+        # x: [batch, time, channel]
+        y = x
+        
+        # Linear transformation first
+        y = self.linear_layer1(y)  # [batch, time, mlp_dim/channel]
+        
+        # Transpose for BatchNorm
+        y = y.transpose(1, 2)  # [batch, mlp_dim/channel, time]
         y = self.normalization_layer(y)
-        y = torch.swapaxes(y, 1, 2)
-        y = self.linear_layer1(y)
+        y = y.transpose(1, 2)  # [batch, time, mlp_dim/channel]
+        
         if self.activation_layer is not None:
             y = self.activation_layer(y)
+            
         if not(self.single_layer_mixer):
             y = self.dropout_layer(y)
             y = self.linear_layer2(y)
+            
         y = self.dropout_layer(y)
         return x + y
 
