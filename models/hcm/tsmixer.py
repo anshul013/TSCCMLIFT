@@ -122,7 +122,7 @@ class HardClusterTSMixer(nn.Module):
         # Regular mixer blocks
         self.mixer_block = MixerBlock(
             channels=self.channels,
-            features_block_mlp_dims=configs.hidden_size,
+            hidden_size=configs.hidden_size,
             seq_len=self.seq_len,
             dropout_factor=configs.dropout,
             activation=configs.activation,
