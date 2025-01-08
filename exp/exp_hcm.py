@@ -1,6 +1,6 @@
 from data_provider.data_loader import Dataset_MTS
 from exp.exp_basic import Exp_Basic
-from models.hcm.tsmixer import HardClusterTSMixer
+from models.hcm.tsmixer import HardClusterTSMixer  # Updated import
 import torch.nn.functional as F
 from utils.ccm.tools import EarlyStopping, adjust_learning_rate
 from utils.ccm.metrics import metric

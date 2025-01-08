@@ -20,7 +20,7 @@ python3 -u run_longExp.py \
   --activation 'relu' \
   --dropout 0.9 \
   --beta 0.3 \
-  --n_layers 2 \
+  --num_blocks 2 \
   --n_cluster 3 \
   --hidden_size 128 \
   --data_dim $num_channels \

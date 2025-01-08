@@ -4,28 +4,28 @@ import torch.nn.functional as F
 import math
 
 class HardClusterAssigner(nn.Module):
-    def __init__(self, n_vars, n_cluster, seq_len, d_model, device):
+    def __init__(self, n_vars, n_cluster, seq_len, hidden_size):
         super(HardClusterAssigner, self).__init__()
         self.n_vars = n_vars
         self.n_cluster = n_cluster
-        self.d_model = d_model
         
         # Feature extractor
-        self.linear = nn.Linear(seq_len, d_model)
+        self.linear = nn.Linear(seq_len, hidden_size)
         
         # Cluster centroids
-        self.cluster_centroids = nn.Parameter(torch.randn(n_cluster, d_model))
+        self.cluster_centroids = nn.Parameter(torch.randn(n_cluster, hidden_size))
         nn.init.kaiming_uniform_(self.cluster_centroids, a=math.sqrt(5))
         
         self.l2norm = lambda x: F.normalize(x, dim=1, p=2)
         
     def forward(self, x):
         # x: [bs, seq_len, n_vars]
+        device = x.device
         x = x.permute(0, 2, 1)  # [bs, n_vars, seq_len]
         
         # Extract features
-        x_emb = self.linear(x)  # [bs, n_vars, d_model]
-        x_emb = x_emb.mean(0)  # [n_vars, d_model]
+        x_emb = self.linear(x)  # [bs, n_vars, hidden_size]
+        x_emb = x_emb.mean(0)  # [n_vars, hidden_size]
         x_emb = self.l2norm(x_emb)
         
         # Calculate distances to centroids
