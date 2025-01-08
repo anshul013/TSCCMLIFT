@@ -91,7 +91,6 @@ parser.add_argument('--padding_patch', type=str, default='end', help='None: None
 
 # Add after CCM specific arguments
 parser.add_argument('--n_cluster', type=int, default=5, help='number of clusters')
-parser.add_argument('--beta', type=float, default=0.1, help='weight of similarity loss')
 
 # Mixers
 parser.add_argument('--num_blocks', type=int, default=3, help='number of mixer blocks to be used in TSMixer')
