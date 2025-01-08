@@ -6,8 +6,8 @@ if [ ! -d "./logs/LongForecasting" ]; then
     mkdir ./logs/LongForecasting
 fi
 
-if [ ! -d "./logs/LongForecasting/TSMixerC" ]; then
-    mkdir ./logs/LongForecasting/TSMixerC
+if [ ! -d "./logs/LongForecasting/HardClusterTSMixer" ]; then
+    mkdir ./logs/LongForecasting/HardClusterTSMixer
 fi
 seq_len=336
 model_name=HardClusterTSMixer
