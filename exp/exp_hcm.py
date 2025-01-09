@@ -74,31 +74,36 @@ class Exp_HCM(Exp_Basic):
             for i, (batch_x, batch_y) in enumerate(vali_loader):
                 pred, true = self._process_one_batch(
                     vali_data, batch_x, batch_y, if_update=False)
+                # pred shape: [32, 96, 7], true shape: [32, 96, 7]
                 loss = nn.MSELoss()(pred.detach().cpu(), true.detach().cpu())
                 
                 total_loss.append(loss.item())
                 
                 batch_size = pred.shape[0]
                 instance_num += batch_size
+                
                 # Convert to numpy and ensure shapes are correct
                 pred_np = pred.detach().cpu().numpy()  # [32, 96, 7]
                 true_np = true.detach().cpu().numpy()  # [32, 96, 7]
-            
+                
                 # Calculate metrics for each sample in batch
                 batch_metrics = []
                 for j in range(batch_size):
-                    sample_metrics = metric(pred_np[j], true_np[j])  # Calculate for each sample
-                    batch_metrics.append(sample_metrics)
-            
-                 # Convert to numpy array and sum
-                batch_metrics = np.array(batch_metrics).sum(axis=0)
+                    # Ensure metric returns exactly 5 values
+                    mae, mse, rmse, mape, mspe = metric(pred_np[j], true_np[j])
+                    batch_metrics.append([mae, mse, rmse, mape, mspe])
+                
+                # Convert to numpy array and sum
+                batch_metrics = np.array(batch_metrics).sum(axis=0)  # Shape: (5,)
                 metrics_all.append(batch_metrics)
 
-        total_loss = np.average(total_loss)
-        metrics_all = np.stack(metrics_all, axis=0)
-        metrics_mean = metrics_all.sum(axis=0) / instance_num
-        mae, mse, rmse, mape, mspe = metrics_mean
-        
+            total_loss = np.average(total_loss)
+            metrics_all = np.stack(metrics_all, axis=0)  # Shape: (num_batches, 5)
+            metrics_mean = metrics_all.sum(axis=0) / instance_num  # Shape: (5,)
+            
+            # Ensure we have exactly 5 metrics
+            mae, mse, rmse, mape, mspe = metrics_mean.tolist()[:5]
+            
         self.model.train()
         return mse, total_loss, mae
 
