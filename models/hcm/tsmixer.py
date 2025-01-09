@@ -53,16 +53,16 @@ class TSMixerH(nn.Module):
         Returns:
             output: Tensor of shape [batch_size, n_vars, out_len]
         """
-        print("Shape of x before RevIN:",x.shape)
+        # print("Shape of x before RevIN:",x.shape)
         # Apply RevIN normalization
         x = self.rev_in(x, 'norm')
-        print("Shape of x after RevIN:",x.shape)
+        # print("Shape of x after RevIN:",x.shape)
         # Get and store cluster assignments
         cluster_assignments = self.cluster_assigner(x, if_update)
         self.current_assignments = cluster_assignments
-        print("Cluster assignments:",cluster_assignments)
-        print("Shape of cluster_assignments:",cluster_assignments.shape)
-        print("Shape of x after cluster_assigner:",x.shape)
+        # print("Cluster assignments:",cluster_assignments)
+        # print("Shape of cluster_assignments:",cluster_assignments.shape)
+        # print("Shape of x after cluster_assigner:",x.shape)
         # Initialize output tensor
         batch_size = x.shape[0]
         outputs = torch.zeros(batch_size, self.n_vars, self.out_len).to(self.device)
