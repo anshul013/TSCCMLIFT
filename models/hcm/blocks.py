@@ -58,6 +58,7 @@ class MlpBlockFeatures(nn.Module):
         self.dropout_layer = nn.Dropout(dropout_factor)
 
     def forward(self, x):
+        print(x.shape)
         y = torch.swapaxes(x, 1, 2)
         y = self.normalization_layer(y)
         y = torch.swapaxes(y, 1, 2)
