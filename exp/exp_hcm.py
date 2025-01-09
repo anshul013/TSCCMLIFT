@@ -80,8 +80,19 @@ class Exp_HCM(Exp_Basic):
                 
                 batch_size = pred.shape[0]
                 instance_num += batch_size
-                batch_metric = np.array(metric(pred.detach().cpu().numpy(), true.detach().cpu().numpy())) * batch_size
-                metrics_all.append(batch_metric)
+                # Convert to numpy and ensure shapes are correct
+                pred_np = pred.detach().cpu().numpy()  # [32, 96, 7]
+                true_np = true.detach().cpu().numpy()  # [32, 96, 7]
+            
+                # Calculate metrics for each sample in batch
+                batch_metrics = []
+                for j in range(batch_size):
+                    sample_metrics = metric(pred_np[j], true_np[j])  # Calculate for each sample
+                    batch_metrics.append(sample_metrics)
+            
+                 # Convert to numpy array and sum
+                batch_metrics = np.array(batch_metrics).sum(axis=0)
+                metrics_all.append(batch_metrics)
 
         total_loss = np.average(total_loss)
         metrics_all = np.stack(metrics_all, axis=0)
