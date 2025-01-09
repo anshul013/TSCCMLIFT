@@ -17,7 +17,7 @@ class TSMixerH(nn.Module):
         self.d_ff = args.d_ff
         self.d_model = args.d_model
         self.device = torch.device(f"cuda:{args.cuda}" if torch.cuda.is_available() else "cpu")
-        
+        self.enc_in = args.enc_in
         # Normalization layer
         self.rev_in = RevIN(num_features=args.enc_in)
         
@@ -53,39 +53,39 @@ class TSMixerH(nn.Module):
         Returns:
             output: Tensor of shape [batch_size, n_vars, out_len]
         """
-        # print("Shape of x before RevIN:",x.shape)
+        print("Shape of x before RevIN:",x.shape)
         # Apply RevIN normalization
         x = self.rev_in(x, 'norm')
-        # print("Shape of x after RevIN:",x.shape)
+        print("Shape of x after RevIN:",x.shape)
         # Get and store cluster assignments
         cluster_assignments = self.cluster_assigner(x, if_update)
         self.current_assignments = cluster_assignments
         # print("Cluster assignments:",cluster_assignments)
-        # print("Shape of cluster_assignments:",cluster_assignments.shape)
+        print("Shape of cluster_assignments:",cluster_assignments.shape)
         # print("Shape of x after cluster_assigner:",x.shape)
         # Initialize output tensor
         batch_size = x.shape[0]
-        outputs = torch.zeros(batch_size, self.n_vars, self.out_len).to(self.device)
-        
+        outputs = torch.zeros(batch_size, self.enc_in, self.out_len).to(self.device)
+        print("Shape of outputs:",outputs.shape)
         # Process each cluster separately
         for cluster_idx in range(self.num_clusters):
             # Get variables belonging to current cluster
             cluster_mask = (cluster_assignments == cluster_idx)
-            print("cluster_mask:",cluster_mask)
+            # print("cluster_mask:",cluster_mask)
             print("Shape of cluster_mask:",cluster_mask.shape)
             if not cluster_mask.any():
                 continue
             
             # Select data for current cluster
             cluster_x = x[:, cluster_mask, :]
-            print("cluster_x:",cluster_x)
+            # print("cluster_x:",cluster_x)
             print("Shape of cluster_x:",cluster_x.shape)
             # Process with corresponding TSMixer
             cluster_output = self.cluster_models[cluster_idx](cluster_x)
-            
+            # print("Shape of cluster_output:",cluster_output.shape)
             # Place outputs back in correct positions
             outputs[:, cluster_mask, :] = cluster_output
-        print("Shape of outputs before inverse normalization:",outputs.shape)
+            print("Shape of outputs:",outputs.shape)
         # Apply inverse normalization
         outputs = self.rev_in(outputs, 'denorm')
         print("Shape of outputs:",outputs.shape)
