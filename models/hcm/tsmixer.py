@@ -70,6 +70,7 @@ class TSMixerH(nn.Module):
         x = x.transpose(1, 2)
         print("Shape of x after transpose:",x.shape)
         # Process each cluster separately
+        start_idx = 0
         for cluster_idx in range(self.num_clusters):
             # Get variables belonging to current cluster
             cluster_mask = (cluster_assignments == cluster_idx)
@@ -77,15 +78,19 @@ class TSMixerH(nn.Module):
             print("Shape of cluster_mask:",cluster_mask.shape)
             if not cluster_mask.any():
                 continue
+            # Get indices where cluster_mask is True
+            cluster_indices = torch.where(cluster_mask)[0]
             # Select data for current cluster
-            cluster_x = x[:, :, cluster_mask]
+            cluster_x = x[:, :, cluster_indices]
             # print("cluster_x:",cluster_x)
             print("Shape of cluster_x:",cluster_x.shape)
             # Process with corresponding TSMixer
             cluster_output = self.cluster_models[cluster_idx](cluster_x)
             print("Shape of cluster_output:",cluster_output.shape)
             # Place outputs back in correct positions
-            outputs[:, :, cluster_mask] = cluster_output
+            if start_idx + self.out_len <= outputs.size(2):
+                outputs[:, :, start_idx:start_idx + self.out_len] = cluster_output
+                start_idx += self.out_len
             print("Shape of outputs:",outputs.shape)
         # Apply inverse normalization
         outputs = self.rev_in(outputs, 'denorm')

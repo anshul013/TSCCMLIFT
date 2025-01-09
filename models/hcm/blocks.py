@@ -25,7 +25,7 @@ class TSMixerBlock(nn.Module):
         # Process through mixer blocks
         for block in self.mixer_blocks:
             x = block(x)
-        print("Shape of x after mixer blocks:",x.shape)
+        # print("Shape of x after mixer blocks:",x.shape)
         
         # Project to output length
         in_len = x.size(1)
@@ -38,7 +38,7 @@ class TSMixerBlock(nn.Module):
         x = torch.swapaxes(x, 1, 2)
         for c in range(self.enc_in):
             y[:, c, :] = self.output_linear_layers[c](x[:, c, :].clone())
-        print("Shape of output from Block:",y.shape)
+        # print("Shape of output from Block:",y.shape)
         return y
 
 class MlpBlockFeatures(nn.Module):
