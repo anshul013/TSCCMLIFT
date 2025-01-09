@@ -3,7 +3,7 @@ import torch.nn as nn
 
 class TSMixerBlock(nn.Module):
     """TSMixer block for processing clustered variables"""
-    def __init__(self, in_len, out_len, d_model, d_ff, n_layers, dropout=0.1):
+    def __init__(self, in_len, out_len, d_model, d_ff, n_layers, enc_in, dropout=0.1):
         super().__init__()
         self.n_layers = n_layers
         self.in_len = in_len
@@ -12,7 +12,7 @@ class TSMixerBlock(nn.Module):
         # Create mixer block for each layer
         self.mixer_blocks = nn.ModuleList([
             MixerBlock(
-                channels=d_model,
+                channels=enc_in,
                 features_block_mlp_dims=d_ff,
                 seq_len=in_len,
                 dropout_factor=dropout,
