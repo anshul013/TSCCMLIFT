@@ -24,7 +24,7 @@ python3 -u run_longExp.py \
   --cluster_update_interval 5 \
   --n_layers 2 \
   --d_model 128 \
-  --d_ff 128
+  --d_ff 128 \
   --in_len $seq_len \
   --out_len $pred_len \
   --is_training 1 \
