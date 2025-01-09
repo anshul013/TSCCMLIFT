@@ -35,10 +35,10 @@ class ClusterAssigner(nn.Module):
             cluster_assignments: Tensor of shape [n_vars]
         """
         if if_update and self.training:
-            # Compute variable representations
-            var_features = self._compute_var_features(x)
+            # Compute variable representations and detach from computation graph
+            var_features = self._compute_var_features(x).detach()
             
-            # Update clusters
+            # Update clusters using detached features
             cluster_idx = self.clusterer.fit_predict(var_features.cpu().numpy())
             self.cluster_assignments = torch.tensor(cluster_idx, device=self.device)
             
