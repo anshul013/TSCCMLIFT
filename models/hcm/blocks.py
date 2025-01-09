@@ -7,6 +7,7 @@ class TSMixerBlock(nn.Module):
         super().__init__()
         self.n_layers = n_layers
         self.enc_in = enc_in
+        self.out_len = out_len
         # Create mixer block for each layer
         self.mixer_blocks = nn.ModuleList([
             MixerBlock(
