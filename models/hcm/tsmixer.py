@@ -60,7 +60,9 @@ class TSMixerH(nn.Module):
         # Get and store cluster assignments
         cluster_assignments = self.cluster_assigner(x, if_update)
         self.current_assignments = cluster_assignments
-        
+        print("Cluster assignments:",cluster_assignments)
+        print("Shape of cluster_assignments:",cluster_assignments.shape)
+        print("Shape of x after cluster_assigner:",x.shape)
         # Initialize output tensor
         batch_size = x.shape[0]
         outputs = torch.zeros(batch_size, self.n_vars, self.out_len).to(self.device)
@@ -80,10 +82,11 @@ class TSMixerH(nn.Module):
             
             # Place outputs back in correct positions
             outputs[:, cluster_mask, :] = cluster_output
-        
+        print("Shape of outputs before inverse normalization:",outputs.shape)
         # Apply inverse normalization
         outputs = self.rev_in(outputs, 'denorm')
-        
+        print("Shape of outputs:",outputs.shape)
+        print("Shape of x after inverse normalization:",x.shape)
         return outputs
 
     def get_current_assignments(self):
