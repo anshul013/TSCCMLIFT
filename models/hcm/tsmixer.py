@@ -93,10 +93,9 @@ class TSMixerH(nn.Module):
                 start_idx += self.out_len
             print("Shape of outputs:",outputs.shape)
         # Apply inverse normalization
+        outputs = outputs.transpose(1, 2)
         outputs = self.rev_in(outputs, 'denorm')
         print("Shape of outputs:",outputs.shape)
-        outputs = outputs.transpose(1, 2)
-        print("Shape of outputs after transpose:",outputs.shape)
         return outputs
 
     def get_current_assignments(self):
