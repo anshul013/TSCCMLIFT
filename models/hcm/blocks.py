@@ -61,10 +61,10 @@ class MlpBlockFeatures(nn.Module):
         else:
             self.linear_layer1 = nn.Linear(channels, self.mlp_dim).to(x.device)
             self.linear_layer2 = nn.Linear(self.mlp_dim, channels).to(x.device)
-        print("Shape of x before linear layer 1:",x.shape)
+        
         # Forward pass
-        print("Shape of x before normalization:",x.shape)
-        y = x  # [batch_size, channels, seq_len]
+        y = torch.swapaxes(x, 1, 2)  # [batch_size, channels, seq_len]
+        print("Shape of y before normalization:",y.shape)
         y = self.normalization_layer(y)
         print("Shape of y after normalization:",y.shape)
         y = torch.swapaxes(y, 1, 2)  # [batch_size, seq_len, channels]
@@ -79,7 +79,6 @@ class MlpBlockFeatures(nn.Module):
             y = self.linear_layer2(y)
             
         y = self.dropout_layer(y)
-        y = torch.swapaxes(y, 1, 2)  # Back to [batch_size, channels, seq_len]
         print("Shape of y after dropout:",y.shape)
         return x + y
 
