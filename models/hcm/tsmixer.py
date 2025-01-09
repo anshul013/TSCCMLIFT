@@ -53,9 +53,10 @@ class TSMixerH(nn.Module):
         Returns:
             output: Tensor of shape [batch_size, n_vars, out_len]
         """
+        print("Shape of x before RevIN:",x.shape)
         # Apply RevIN normalization
         x = self.rev_in(x, 'norm')
-        
+        print("Shape of x after RevIN:",x.shape)
         # Get and store cluster assignments
         cluster_assignments = self.cluster_assigner(x, if_update)
         self.current_assignments = cluster_assignments
