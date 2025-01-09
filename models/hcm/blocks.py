@@ -38,9 +38,8 @@ class TSMixerBlock(nn.Module):
         x = torch.swapaxes(x, 1, 2)
         for c in range(self.enc_in):
             y[:, c, :] = self.output_linear_layers[c](x[:, c, :].clone())
-        x = torch.swapaxes(x, 1, 2)
-        print("Shape of output from Block:",x.shape)
-        return x
+        print("Shape of output from Block:",y.shape)
+        return y
 
 class MlpBlockFeatures(nn.Module):
     """MLP for features"""
