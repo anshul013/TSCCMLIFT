@@ -51,10 +51,10 @@ class MlpBlockFeatures(nn.Module):
 
     def forward(self, x):
         # Create layers dynamically based on input size
-        channels = x.size(1)  # Get number of channels
-        print("Shape of x before normalization:",x.shape)
+        channels = x.size(2)  # Get number of channels
+        
         self.normalization_layer = nn.BatchNorm1d(channels).to(x.device)
-        print("Shape of x after normalization:",x.shape)
+        
 
         if self.single_layer_mixer:
             self.linear_layer1 = nn.Linear(channels, channels).to(x.device)
@@ -63,11 +63,13 @@ class MlpBlockFeatures(nn.Module):
             self.linear_layer2 = nn.Linear(self.mlp_dim, channels).to(x.device)
         print("Shape of x before linear layer 1:",x.shape)
         # Forward pass
+        print("Shape of x before normalization:",x.shape)
         y = x  # [batch_size, channels, seq_len]
         y = self.normalization_layer(y)
+        print("Shape of y after normalization:",y.shape)
         y = torch.swapaxes(y, 1, 2)  # [batch_size, seq_len, channels]
         y = self.linear_layer1(y)
-        print("Shape of x after linear layer 1:",x.shape)
+        print("Shape of y after linear layer 1:",y.shape)
         
         if self.activation_layer is not None:
             y = self.activation_layer(y)
@@ -78,7 +80,7 @@ class MlpBlockFeatures(nn.Module):
             
         y = self.dropout_layer(y)
         y = torch.swapaxes(y, 1, 2)  # Back to [batch_size, channels, seq_len]
-        print("Shape of x after dropout:",x.shape)
+        print("Shape of y after dropout:",y.shape)
         return x + y
 
 class MlpBlockTimesteps(nn.Module):
@@ -98,22 +100,21 @@ class MlpBlockTimesteps(nn.Module):
 
     def forward(self, x):
         # Create layers dynamically based on input size
-        print("Shape of x before dynamic:",x.shape)
-        seq_len = x.size(2)  # Get sequence length
-        print("Shape of x before normalization:",x.shape)
+        seq_len = x.size(1)  # Get sequence length
         self.normalization_layer = nn.BatchNorm1d(seq_len).to(x.device)
-        print("Shape of x after normalization:",x.shape)
         self.linear_layer = nn.Linear(seq_len, seq_len).to(x.device)
-        print("Shape of x before linear layer:",x.shape)
-        
+        print("Shape of x before normalization:",x.shape)
         # Forward pass
         y = self.normalization_layer(x)
+        print("Shape of y after normalization:",y.shape)
         y = torch.swapaxes(y, 1, 2)
+        print("Shape of y after swapaxes:",y.shape)
         y = self.linear_layer(y)
+        print("Shape of y after linear layer:",y.shape)
         y = self.activation_layer(y)
         y = self.dropout_layer(y)
         y = torch.swapaxes(y, 1, 2)
-        print("Shape of x after swapaxes:",x.shape)
+        print("Shape of y after swapaxes:",y.shape)
         return x + y
 
 class MixerBlock(nn.Module):
