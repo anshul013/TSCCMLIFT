@@ -31,7 +31,7 @@ class TSMixerH(nn.Module):
         
         # Create separate TSMixer models for each cluster
         self.cluster_models = nn.ModuleList([
-            TSMixerBlock(
+            Model(
                 in_len=self.in_len,
                 out_len=self.out_len,
                 d_model=self.d_model,
