@@ -2,7 +2,7 @@ from data_provider.data_loader import Dataset_MTS
 from exp.exp_basic import Exp_Basic
 from models.hcm.tsmixer import TSMixerH
 from utils.tools import EarlyStopping, adjust_learning_rate
-from utils.metrics import metric
+from utils.ccm.metrics import metric
 
 import numpy as np
 import torch
@@ -89,24 +89,21 @@ class Exp_HCM(Exp_Basic):
                 # Calculate metrics for each sample in batch
                 batch_metrics = []
                 for j in range(batch_size):
-                    # Ensure metric returns exactly 5 values
-                    mae, mse, rmse, mape, mspe = metric(pred_np[j], true_np[j])
-                    batch_metrics.append([mae, mse, rmse, mape, mspe])
+                    sample_metrics = metric(pred_np[j], true_np[j])  # Calculate for each sample
+                    batch_metrics.append(sample_metrics)
                 
                 # Convert to numpy array and sum
-                batch_metrics = np.array(batch_metrics).sum(axis=0)  # Shape: (5,)
+                batch_metrics = np.array(batch_metrics).sum(axis=0)
                 metrics_all.append(batch_metrics)
 
             total_loss = np.average(total_loss)
-            metrics_all = np.stack(metrics_all, axis=0)  # Shape: (num_batches, 5)
-            metrics_mean = metrics_all.sum(axis=0) / instance_num  # Shape: (5,)
-            
-            # Ensure we have exactly 5 metrics
-            mae, mse, rmse, mape, mspe = metrics_mean.tolist()[:5]
+            metrics_all = np.stack(metrics_all, axis=0)
+            metrics_mean = metrics_all.sum(axis=0) / instance_num
+            mae, mse, rmse, mape, mspe = metrics_mean
             
         self.model.train()
         return mse, total_loss, mae
-
+                    
     def train(self, setting):
         train_data, train_loader = self._get_data(flag='train')
         vali_data, vali_loader = self._get_data(flag='val')
