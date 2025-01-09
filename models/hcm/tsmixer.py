@@ -69,25 +69,28 @@ class TSMixerH(nn.Module):
         print("Shape of outputs:",outputs.shape)
         x = x.transpose(1, 2)
         print("Shape of x after transpose:",x.shape)
+        # Keep track of output position
+        current_pos = 0
         # Process each cluster separately
         for cluster_idx in range(self.num_clusters):
             # Get variables belonging to current cluster
             cluster_mask = (cluster_assignments == cluster_idx)
             # print("cluster_mask:",cluster_mask)
             print("Shape of cluster_mask:",cluster_mask.shape)
-            if not cluster_mask.any():
+            cluster_size = cluster_mask.sum().item()
+            if cluster_size == 0:
                 continue
-            
             # Select data for current cluster
             cluster_x = x[:, :, cluster_mask]
             # print("cluster_x:",cluster_x)
             print("Shape of cluster_x:",cluster_x.shape)
             # Process with corresponding TSMixer
             cluster_output = self.cluster_models[cluster_idx](cluster_x)
-            # print("Shape of cluster_output:",cluster_output.shape)
+            print("Shape of cluster_output:",cluster_output.shape)
             # Place outputs back in correct positions
-            outputs[:, :, cluster_mask] = cluster_output
+            outputs[:, :, current_pos:current_pos + cluster_size] = cluster_output
             print("Shape of outputs:",outputs.shape)
+            current_pos += cluster_size
         # Apply inverse normalization
         outputs = self.rev_in(outputs, 'denorm')
         print("Shape of outputs:",outputs.shape)
