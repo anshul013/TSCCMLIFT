@@ -6,6 +6,7 @@ import torch
 import math
 from exp.exp_main import Exp_Main
 from exp.exp_ccm import Exp_CCM
+from exp.exp_hcm import Exp_HCM
 # import wandb
 
 
@@ -87,6 +88,12 @@ parser.add_argument('--pretrain_head', type=bool, default=False, help='pretrain 
 parser.add_argument('--patch_len', type=int, default=16, help='patch length (L_seg)')
 parser.add_argument('--max_seq_len', type=int, default=1024, help="maximum number of sequence_length")
 parser.add_argument('--padding_patch', type=str, default='end', help='None: None; end: padding on the end')
+
+# Add HCM specific arguments
+parser.add_argument('--num_clusters', type=int, default=3, help='Number of clusters for HCM')
+parser.add_argument('--clustering_method', type=str, default='kmeans', choices=['kmeans', 'hierarchical'], help='Clustering method for HCM')
+parser.add_argument('--cluster_update_interval', type=int, default=5, help='Number of epochs between cluster updates')
+parser.add_argument('--cluster_feature_dim', type=int, default=4, help='Dimension of features used for clustering')
 
 # Mixers
 parser.add_argument('--num_blocks', type=int, default=3, help='number of mixer blocks to be used in TSMixer')
@@ -193,6 +200,8 @@ print(args)
 # Select experiment class based on model
 if args.model == 'TSMixerC':
     Exp = Exp_CCM
+elif args.model == 'TSMixerH':
+    Exp = Exp_HCM
 else:
     Exp = Exp_Main
 
@@ -213,6 +222,18 @@ if args.is_training:
                 args.cluster_ratio,
                 args.d_model,
                 args.n_heads,
+                args.n_layers,
+                ii)
+        elif args.model == 'TSMixerH':  # Add this condition for HCM
+            setting = '{}_{}_il{}_ol{}_nc{}_cm{}_ui{}_dm{}_nl{}_itr{}'.format(
+                args.model_id,
+                args.model,
+                args.in_len,
+                args.out_len,
+                args.num_clusters,
+                args.clustering_method,
+                args.cluster_update_interval,
+                args.d_model,
                 args.n_layers,
                 ii)
         else:
