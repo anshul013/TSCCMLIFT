@@ -71,12 +71,15 @@ class TSMixerH(nn.Module):
         for cluster_idx in range(self.num_clusters):
             # Get variables belonging to current cluster
             cluster_mask = (cluster_assignments == cluster_idx)
+            print("cluster_mask:",cluster_mask)
+            print("Shape of cluster_mask:",cluster_mask.shape)
             if not cluster_mask.any():
                 continue
             
             # Select data for current cluster
             cluster_x = x[:, cluster_mask, :]
-            
+            print("cluster_x:",cluster_x)
+            print("Shape of cluster_x:",cluster_x.shape)
             # Process with corresponding TSMixer
             cluster_output = self.cluster_models[cluster_idx](cluster_x)
             
