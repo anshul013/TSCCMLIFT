@@ -19,7 +19,7 @@ class TSMixerH(nn.Module):
         self.device = torch.device(f"cuda:{args.cuda}" if torch.cuda.is_available() else "cpu")
         
         # Normalization layer
-        self.rev_in = RevIN(num_features=self.n_vars)
+        self.rev_in = RevIN(num_features=args.enc_in)
         
         # Clustering module
         self.cluster_assigner = ClusterAssigner(
