@@ -60,18 +60,25 @@ class MlpBlockFeatures(nn.Module):
     def forward(self, x):
         print("Shape of x:",x.shape)
         y = torch.swapaxes(x, 1, 2)
+        print("Shape of y:",y.shape)
         y = self.normalization_layer(y)
+        print("Shape of y after normalization:",y.shape)
         y = torch.swapaxes(y, 1, 2)
+        print("Shape of y after swapaxes:",y.shape)
         y = self.linear_layer1(y)
+        print("Shape of y after linear layer 1:",y.shape)
         
         if self.activation_layer is not None:
             y = self.activation_layer(y)
-            
+        print("Shape of y after activation:",y.shape)
         if not self.single_layer_mixer:
             y = self.dropout_layer(y)
+            print("Shape of y after dropout:",y.shape)
             y = self.linear_layer2(y)
+            print("Shape of y after linear layer 2:",y.shape)
             
         y = self.dropout_layer(y)
+        print("Shape of y after final dropout:",y.shape)
         return x + y
 
 class MlpBlockTimesteps(nn.Module):
