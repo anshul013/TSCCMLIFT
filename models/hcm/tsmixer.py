@@ -55,6 +55,7 @@ class TSMixerH(nn.Module):
         """
         print("Shape of x before RevIN:",x.shape)
         # Apply RevIN normalization
+        x = x.transpose(1, 2)
         x = self.rev_in(x, 'norm')
         print("Shape of x after RevIN:",x.shape)
         # Get and store cluster assignments
@@ -77,19 +78,20 @@ class TSMixerH(nn.Module):
                 continue
             
             # Select data for current cluster
-            cluster_x = x[:, cluster_mask, :]
+            cluster_x = x[:, :, cluster_mask]
             # print("cluster_x:",cluster_x)
             print("Shape of cluster_x:",cluster_x.shape)
             # Process with corresponding TSMixer
             cluster_output = self.cluster_models[cluster_idx](cluster_x)
             # print("Shape of cluster_output:",cluster_output.shape)
             # Place outputs back in correct positions
-            outputs[:, cluster_mask, :] = cluster_output
+            outputs[:, :, cluster_mask] = cluster_output
             print("Shape of outputs:",outputs.shape)
         # Apply inverse normalization
         outputs = self.rev_in(outputs, 'denorm')
         print("Shape of outputs:",outputs.shape)
-        print("Shape of x after inverse normalization:",x.shape)
+        outputs = outputs.transpose(1, 2)
+        print("Shape of outputs after transpose:",outputs.shape)
         return outputs
 
     def get_current_assignments(self):
