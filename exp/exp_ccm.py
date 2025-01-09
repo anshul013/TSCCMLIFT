@@ -193,7 +193,7 @@ class Exp_CCM(Exp_Basic):
                 train_loss_f, train_loss_s, vali_loss_f, vali_loss_s, test_loss_f, test_loss_s))
             print("Vali MSE: {:.7f}, MAE: {:.7f}, Test MSE: {:.7f}, MAE: {:.7f}".format(
                 vali_mse, vali_mae, test_mse, test_mae))
-            print("Current cluster probabilities:", self.model.cluster_prob)
+            # print("Current cluster probabilities:", self.model.cluster_prob)
 
             # wandb.log({"Train_loss":train_loss, "Train_forecast_loss":train_loss_f ,"Train_similarity_loss": train_loss_s,
             #     "Vali_loss": vali_loss, "Vali_forecast_loss":vali_loss_f , "Vali_similarity_loss": vali_loss_s, "Vali_mse": vali_mse,

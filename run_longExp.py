@@ -6,7 +6,6 @@ import torch
 import math
 from exp.exp_main import Exp_Main
 from exp.exp_ccm import Exp_CCM
-from exp.exp_hcm import Exp_HCM
 # import wandb
 
 
@@ -88,9 +87,6 @@ parser.add_argument('--pretrain_head', type=bool, default=False, help='pretrain 
 parser.add_argument('--patch_len', type=int, default=16, help='patch length (L_seg)')
 parser.add_argument('--max_seq_len', type=int, default=1024, help="maximum number of sequence_length")
 parser.add_argument('--padding_patch', type=str, default='end', help='None: None; end: padding on the end')
-
-# Add after CCM specific arguments
-parser.add_argument('--n_cluster', type=int, default=5, help='number of clusters')
 
 # Mixers
 parser.add_argument('--num_blocks', type=int, default=3, help='number of mixer blocks to be used in TSMixer')
@@ -197,8 +193,6 @@ print(args)
 # Select experiment class based on model
 if args.model == 'TSMixerC':
     Exp = Exp_CCM
-elif args.model == 'HardClusterTSMixer':
-    Exp = Exp_HCM
 else:
     Exp = Exp_Main
 
@@ -219,18 +213,6 @@ if args.is_training:
                 args.cluster_ratio,
                 args.d_model,
                 args.n_heads,
-                args.n_layers,
-                ii)
-        elif args.model == 'HardClusterTSMixer':
-            setting = '{}_{}_il{}_ol{}_pl{}_ratio{}_dm{}_nh{}_el{}_itr{}'.format(
-                args.model_id,
-                args.model,
-                args.in_len,
-                args.out_len,
-                args.patch_len,
-                args.n_cluster,
-                args.beta,
-                args.hidden_size,
                 args.n_layers,
                 ii)
         else:
