@@ -34,7 +34,7 @@ class ClusterAssigner(nn.Module):
         Returns:
             cluster_assignments: Tensor of shape [n_vars]
         """
-        print("Shape of x in Cluster Assigner:",x.shape)
+        # print("Shape of x in Cluster Assigner:",x.shape)
         if if_update and self.training:
             # Compute variable representations and detach from computation graph
             var_features = self._compute_var_features(x).detach()
