@@ -56,7 +56,6 @@ class TSMixerH(nn.Module):
         print("Shape of x before RevIN:",x.shape)
         # Apply RevIN normalization
         x = self.rev_in(x, 'norm')
-        x = x.transpose(1, 2)
         print("Shape of x after RevIN:",x.shape)
         # Get and store cluster assignments
         cluster_assignments = self.cluster_assigner(x, if_update)
@@ -68,6 +67,8 @@ class TSMixerH(nn.Module):
         batch_size = x.shape[0]
         outputs = torch.zeros(batch_size, self.enc_in, self.out_len).to(self.device)
         print("Shape of outputs:",outputs.shape)
+        x = x.transpose(1, 2)
+        print("Shape of x after transpose:",x.shape)
         # Process each cluster separately
         for cluster_idx in range(self.num_clusters):
             # Get variables belonging to current cluster
