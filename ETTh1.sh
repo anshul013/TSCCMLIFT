@@ -25,7 +25,6 @@ python3 -u run_longExp.py \
   --n_layers 2 \
   --d_model 128 \
   --d_ff 128
-  --data_dim $num_channels \
   --in_len $seq_len \
   --out_len $pred_len \
   --is_training 1 \
