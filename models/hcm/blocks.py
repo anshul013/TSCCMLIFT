@@ -36,7 +36,7 @@ class TSMixerBlock(nn.Module):
         # Apply output projection per channel
         y = torch.zeros([x.size(0), x.size(1), self.out_len], dtype=x.dtype).to(x.device)
         x = torch.swapaxes(x, 1, 2)
-        for c in range(self.channels):
+        for c in range(self.enc_in):
             y[:, c, :] = self.output_linear_layers[c](x[:, c, :].clone())
         x = torch.swapaxes(x, 1, 2)
         print("Shape of output from Block:",x.shape)
