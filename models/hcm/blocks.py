@@ -6,7 +6,6 @@ class TSMixerBlock(nn.Module):
     def __init__(self, in_len, out_len, d_model, d_ff, n_layers, enc_in, dropout=0.1):
         super().__init__()
         self.n_layers = n_layers
-        self.out_len = out_len
         
         # Create mixer block for each layer
         self.mixer_blocks = nn.ModuleList([
@@ -18,15 +17,18 @@ class TSMixerBlock(nn.Module):
             ) for _ in range(n_layers)
         ])
         
-        # Output projection
-        self.output_linear = nn.Linear(in_len, out_len)
+        
         
     def forward(self, x):
         # Process through mixer blocks
         for block in self.mixer_blocks:
             x = block(x)
         print("Shape of x after mixer blocks:",x.shape)
+        
         # Project to output length
+        in_len = x.size(1)
+        out_len = x.size(2)
+        self.output_linear = nn.Linear(in_len, out_len).to(x.device)
         x = torch.swapaxes(x, 1, 2)
         x = self.output_linear(x)
         x = torch.swapaxes(x, 1, 2)
