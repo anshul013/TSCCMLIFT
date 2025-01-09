@@ -2,7 +2,7 @@ from data_provider.data_loader import Dataset_MTS
 from exp.exp_basic import Exp_Basic
 from models.hcm.tsmixer import TSMixerH
 from utils.tools import EarlyStopping, adjust_learning_rate
-from utils.metrics import metric, MSE_dim
+from utils.metrics import metric
 
 import numpy as np
 import torch
