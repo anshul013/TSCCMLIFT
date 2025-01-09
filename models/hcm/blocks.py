@@ -98,6 +98,7 @@ class MlpBlockTimesteps(nn.Module):
 
     def forward(self, x):
         # Create layers dynamically based on input size
+        print("Shape of x before dynamic:",x.shape)
         seq_len = x.size(2)  # Get sequence length
         print("Shape of x before normalization:",x.shape)
         self.normalization_layer = nn.BatchNorm1d(seq_len).to(x.device)
