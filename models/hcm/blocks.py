@@ -32,6 +32,7 @@ class TSMixerBlock(nn.Module):
         x = torch.swapaxes(x, 1, 2)
         x = self.output_linear(x)
         x = torch.swapaxes(x, 1, 2)
+        print("Shape of x after output linear:",x.shape)
         return x
 
 class MlpBlockFeatures(nn.Module):
