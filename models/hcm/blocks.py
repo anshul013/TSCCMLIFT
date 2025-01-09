@@ -26,13 +26,15 @@ class TSMixerBlock(nn.Module):
         
     def forward(self, x):
         # Process through mixer blocks
+        print("Shape of x before processing:",x.shape)
         for block in self.mixer_blocks:
             x = block(x)
-            
+        print("Shape of x before output projection:",x.shape)
         # Project to output length
         x = torch.swapaxes(x, 1, 2)
         x = self.output_linear(x)
         x = torch.swapaxes(x, 1, 2)
+        print("Shape of x after output projection:",x.shape)
         return x
 
 class MlpBlockFeatures(nn.Module):
@@ -98,12 +100,19 @@ class MlpBlockTimesteps(nn.Module):
         self.dropout_layer = nn.Dropout(dropout_factor)
 
     def forward(self, x):
+        print("Shape of x:",x.shape)
         y = self.normalization_layer(x)
+        print("Shape of y after normalization:",y.shape)
         y = torch.swapaxes(y, 1, 2)
+        print("Shape of y after swapaxes:",y.shape)
         y = self.linear_layer(y)
+        print("Shape of y after linear layer:",y.shape)
         y = self.activation_layer(y)
+        print("Shape of y after activation:",y.shape)
         y = self.dropout_layer(y)
+        print("Shape of y after dropout:",y.shape)
         y = torch.swapaxes(y, 1, 2)
+        print("Shape of y after swapaxes:",y.shape)
         return x + y
 
 class MixerBlock(nn.Module):
