@@ -55,8 +55,8 @@ class TSMixerH(nn.Module):
         """
         print("Shape of x before RevIN:",x.shape)
         # Apply RevIN normalization
-        x = x.transpose(1, 2)
         x = self.rev_in(x, 'norm')
+        x = x.transpose(1, 2)
         print("Shape of x after RevIN:",x.shape)
         # Get and store cluster assignments
         cluster_assignments = self.cluster_assigner(x, if_update)
