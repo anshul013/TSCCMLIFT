@@ -38,7 +38,7 @@ class TSMixerH(nn.Module):
         """
         Args:
             x: Input tensor of shape [batch_size, seq_len, n_vars]
-            if_update: Whether to update cluster assignments
+            if_update: Boolean indicating whether to update cluster assignments
         Returns:
             outputs: Output tensor of shape [batch_size, pred_len, n_vars]
         """
@@ -62,6 +62,16 @@ class TSMixerH(nn.Module):
             # Select data for current cluster
             cluster_channels = torch.where(cluster_mask)[0]
             cluster_input = x[:, :, cluster_channels]
+            
+            # Create temporary args for cluster model
+            cluster_args = type('Args', (), {
+                'enc_in': len(cluster_channels),  # Set enc_in to number of channels in cluster
+                'seq_len': self.in_len,
+                'pred_len': self.out_len,
+                'd_model': self.d_model,
+                'd_ff': self.d_ff,
+                'cuda': str(self.device).split(':')[-1]
+            })()
             
             # Process with corresponding model
             cluster_output = self.cluster_models[cluster_idx](cluster_input)
