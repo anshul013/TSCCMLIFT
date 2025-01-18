@@ -124,22 +124,9 @@ class Exp_HCM(Exp_Basic):
         early_stopping = EarlyStopping(patience=self.args.patience, verbose=True)
         
         model_optim = self._select_optimizer()
-        criterion = nn.MSELoss()  # Simple MSE loss as used in CCM
+        criterion = nn.MSELoss()
         
-        best_model_path = path + '/' + 'checkpoint.pth'
-        if os.path.exists(best_model_path):
-            try:
-                # Get first batch for initialization
-                first_batch = next(iter(train_loader))[0]  # Get X from (X, y) tuple
-                # Load model with initialization
-                state_dict = torch.load(best_model_path)
-                self.model.load_state_dict_with_init(state_dict, first_batch)
-                print('Successfully loaded previous checkpoint')
-            except Exception as e:
-                print(f"Warning: Could not load previous checkpoint. Starting fresh. Error: {str(e)}")
-                if os.path.exists(best_model_path):
-                    os.remove(best_model_path)  # Remove potentially corrupted checkpoint
-        
+        # Training loop
         for epoch in range(self.args.train_epochs):
             iter_count = 0
             train_loss = []
@@ -197,10 +184,11 @@ class Exp_HCM(Exp_Basic):
 
             adjust_learning_rate(model_optim, epoch+1, self.args)
             
-        best_model_path = path+'/'+'checkpoint.pth'
+        # Load best model and save state dict properly
+        best_model_path = path + '/' + 'checkpoint.pth'
         self.model.load_state_dict(torch.load(best_model_path))
         state_dict = self.model.module.state_dict() if isinstance(self.model, DataParallel) else self.model.state_dict()
-        torch.save(state_dict, path+'/'+'checkpoint.pth')
+        torch.save(state_dict, path + '/' + 'checkpoint.pth')
         
         return self.model
 
