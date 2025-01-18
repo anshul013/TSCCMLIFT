@@ -92,7 +92,7 @@ class TSMixerBlock(nn.Module):
             single_layer_mixer=False
         )
         
-        # RevIN normalization
+        # RevIN normalization with correct number of features
         self.rev_norm = RevIN(num_features=enc_in)
         
         # Output projection
@@ -111,7 +111,12 @@ class TSMixerBlock(nn.Module):
     def forward(self, x):
         device = x.device
         # Ensure all components are on the same device
-        self.to(device)
+        self = self.to(device)
+        
+        # Create new RevIN instance with correct number of features if needed
+        if x.size(2) != self.channels:
+            self.rev_norm = RevIN(num_features=x.size(2)).to(device)
+            self.channels = x.size(2)
         
         # Apply RevIN normalization
         x = self.rev_norm(x, 'norm')
@@ -123,6 +128,12 @@ class TSMixerBlock(nn.Module):
         # Project to prediction length
         x = torch.swapaxes(x, 1, 2)
         y = torch.zeros([x.size(0), x.size(1), self.pred_len], dtype=x.dtype, device=device)
+        
+        # Ensure we have the right number of output layers
+        if len(self.output_linear_layers) != self.channels:
+            self.output_linear_layers = nn.ModuleList([
+                nn.Linear(x.size(2), self.pred_len).to(device) for _ in range(self.channels)
+            ])
         
         for c in range(self.channels):
             y[:, c, :] = self.output_linear_layers[c](x[:, c, :].clone())
