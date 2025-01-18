@@ -81,23 +81,31 @@ class TSMixerBlock(nn.Module):
         self.num_blocks = n_layers
         self.channels = enc_in
         self.pred_len = out_len
+        self.in_len = in_len
+        self.d_ff = d_ff
+        self.dropout = dropout
         
+        # Create components with initial size
+        self._create_components()
+
+    def _create_components(self):
+        """Create or recreate all components with current channel size"""
         # Create mixer block
         self.mixer_block = MixerBlock(
-            channels=enc_in,
-            features_block_mlp_dims=d_ff,
-            seq_len=in_len,
-            dropout_factor=dropout,
+            channels=self.channels,
+            features_block_mlp_dims=self.d_ff,
+            seq_len=self.in_len,
+            dropout_factor=self.dropout,
             activation='relu',
             single_layer_mixer=False
         )
         
-        # RevIN normalization with correct number of features
-        self.rev_norm = RevIN(num_features=enc_in)
+        # RevIN normalization
+        self.rev_norm = RevIN(num_features=self.channels)
         
         # Output projection
         self.output_linear_layers = nn.ModuleList([
-            nn.Linear(in_len, out_len) for _ in range(enc_in)
+            nn.Linear(self.in_len, self.pred_len) for _ in range(self.channels)
         ])
 
     def to(self, device):
@@ -113,10 +121,11 @@ class TSMixerBlock(nn.Module):
         # Ensure all components are on the same device
         self = self.to(device)
         
-        # Create new RevIN instance with correct number of features if needed
+        # Recreate components if channel size has changed
         if x.size(2) != self.channels:
-            self.rev_norm = RevIN(num_features=x.size(2)).to(device)
             self.channels = x.size(2)
+            self._create_components()
+            self.to(device)
         
         # Apply RevIN normalization
         x = self.rev_norm(x, 'norm')
@@ -128,12 +137,6 @@ class TSMixerBlock(nn.Module):
         # Project to prediction length
         x = torch.swapaxes(x, 1, 2)
         y = torch.zeros([x.size(0), x.size(1), self.pred_len], dtype=x.dtype, device=device)
-        
-        # Ensure we have the right number of output layers
-        if len(self.output_linear_layers) != self.channels:
-            self.output_linear_layers = nn.ModuleList([
-                nn.Linear(x.size(2), self.pred_len).to(device) for _ in range(self.channels)
-            ])
         
         for c in range(self.channels):
             y[:, c, :] = self.output_linear_layers[c](x[:, c, :].clone())
