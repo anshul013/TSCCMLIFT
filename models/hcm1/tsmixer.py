@@ -9,7 +9,22 @@ class ClusterTSMixer(nn.Module):
     def __init__(self, num_features, args):
         super().__init__()
         self.rev_norm = RevIN(num_features=num_features)
-        self.model = TSMixer(args)
+        
+        # Create complete args for TSMixer
+        cluster_args = type('Args', (), {
+            'enc_in': num_features,
+            'seq_len': args.seq_len,
+            'pred_len': args.pred_len,
+            'd_model': args.d_model,
+            'd_ff': args.d_ff,
+            'cuda': args.cuda,
+            'num_blocks': args.n_layers,  # Using n_layers as num_blocks
+            'individual': False,
+            'dropout': args.dropout,
+            'activation': args.activation
+        })()
+        
+        self.model = TSMixer(cluster_args)
         
     def forward(self, x):
         x = self.rev_norm(x, 'norm')
@@ -30,6 +45,7 @@ class TSMixerH(nn.Module):
         self.d_model = args.d_model
         self.device = torch.device(f"cuda:{args.cuda}" if torch.cuda.is_available() else "cpu")
         self.enc_in = args.enc_in
+        self.args = args  # Store args for cluster models
         
         # Normalization layer for full input
         self.rev_in = RevIN(num_features=args.enc_in)
@@ -77,18 +93,8 @@ class TSMixerH(nn.Module):
                 num_channels = len(cluster_channels)
                 self.cluster_sizes[cluster_idx] = num_channels
                 
-                # Create args for this cluster
-                cluster_args = type('Args', (), {
-                    'enc_in': num_channels,
-                    'seq_len': self.in_len,
-                    'pred_len': self.out_len,
-                    'd_model': self.d_model,
-                    'd_ff': self.d_ff,
-                    'cuda': str(self.device).split(':')[-1]
-                })()
-                
                 # Create cluster-specific model
-                self.cluster_models.append(ClusterTSMixer(num_channels, cluster_args))
+                self.cluster_models.append(ClusterTSMixer(num_channels, self.args))
         
         # Process each cluster
         model_idx = 0
