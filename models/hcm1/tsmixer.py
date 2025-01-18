@@ -8,6 +8,7 @@ class ClusterTSMixer(nn.Module):
     """TSMixer model adapted for cluster-specific processing"""
     def __init__(self, num_features, args):
         super().__init__()
+        self.device = torch.device(f"cuda:{args.cuda}" if torch.cuda.is_available() else "cpu")
         self.model = TSMixerBlock(
             in_len=args.seq_len,
             out_len=args.pred_len,
@@ -16,7 +17,7 @@ class ClusterTSMixer(nn.Module):
             n_layers=args.n_layers,
             enc_in=num_features,
             dropout=args.dropout
-        )
+        ).to(self.device)
         
     def forward(self, x):
         return self.model(x)
@@ -37,7 +38,7 @@ class TSMixerH(nn.Module):
         self.args = args
         
         # Normalization layer for full input
-        self.rev_in = RevIN(num_features=args.enc_in)
+        self.rev_in = RevIN(num_features=args.enc_in).to(self.device)
         
         # Clustering module
         self.cluster_assigner = HardClusterAssigner(
@@ -45,10 +46,10 @@ class TSMixerH(nn.Module):
             num_clusters=args.num_clusters,
             method=args.clustering_method,
             device=self.device
-        )
+        ).to(self.device)
         
         # Initialize cluster models list
-        self.cluster_models = nn.ModuleList()
+        self.cluster_models = nn.ModuleList().to(self.device)
         self.cluster_sizes = {}
         
     def forward(self, x, if_update=False):
@@ -60,6 +61,7 @@ class TSMixerH(nn.Module):
             outputs: Output tensor of shape [batch_size, pred_len, n_vars]
         """
         batch_size = x.shape[0]
+        x = x.to(self.device)
         
         # Apply RevIN normalization
         x = self.rev_in(x, 'norm')
@@ -72,7 +74,7 @@ class TSMixerH(nn.Module):
         
         # Create or update cluster models if needed
         if if_update or len(self.cluster_models) == 0:
-            self.cluster_models = nn.ModuleList()
+            self.cluster_models = nn.ModuleList().to(self.device)
             self.cluster_sizes = {}
             for cluster_idx in range(self.num_clusters):
                 cluster_mask = (cluster_assignments == cluster_idx)

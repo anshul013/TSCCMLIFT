@@ -100,6 +100,14 @@ class TSMixerBlock(nn.Module):
             nn.Linear(in_len, out_len) for _ in range(self.channels)
         ])
 
+    def to(self, device):
+        """Ensures all submodules are on the correct device"""
+        super().to(device)
+        self.mixer_block = self.mixer_block.to(device)
+        self.rev_norm = self.rev_norm.to(device)
+        self.output_linear_layers = self.output_linear_layers.to(device)
+        return self
+
     def forward(self, x):
         # x: [Batch, Input length, Channel]
         x = self.rev_norm(x, 'norm')
