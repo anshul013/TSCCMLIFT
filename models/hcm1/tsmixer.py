@@ -2,6 +2,20 @@ import torch
 import torch.nn as nn
 from models.hcm1.preprocessor import HardClusterAssigner
 from models.Rev_in import RevIN
+from models.TSMixer import Model as TSMixer
+
+class ClusterTSMixer(nn.Module):
+    """TSMixer model adapted for cluster-specific processing"""
+    def __init__(self, num_features, args):
+        super().__init__()
+        self.rev_norm = RevIN(num_features=num_features)
+        self.model = TSMixer(args)
+        
+    def forward(self, x):
+        x = self.rev_norm(x, 'norm')
+        x = self.model(x)
+        x = self.rev_norm(x, 'denorm')
+        return x
 
 class TSMixerH(nn.Module):
     """Hard Clustering variant of TSMixer"""
@@ -17,7 +31,7 @@ class TSMixerH(nn.Module):
         self.device = torch.device(f"cuda:{args.cuda}" if torch.cuda.is_available() else "cpu")
         self.enc_in = args.enc_in
         
-        # Normalization layer
+        # Normalization layer for full input
         self.rev_in = RevIN(num_features=args.enc_in)
         
         # Clustering module
@@ -28,11 +42,9 @@ class TSMixerH(nn.Module):
             device=self.device
         )
         
-        # Create separate TSMixer models for each cluster
-        from models.TSMixer import Model as TSMixer
-        self.cluster_models = nn.ModuleList([
-            TSMixer(args) for _ in range(self.num_clusters)
-        ])
+        # Initialize cluster models list (will be populated in forward pass)
+        self.cluster_models = nn.ModuleList()
+        self.cluster_sizes = {}
         
     def forward(self, x, if_update=False):
         """
@@ -53,7 +65,33 @@ class TSMixerH(nn.Module):
         # Initialize output tensor
         outputs = torch.zeros(batch_size, self.out_len, self.enc_in).to(self.device)
         
-        # Process each cluster separately
+        # Create or update cluster models if needed
+        if if_update or len(self.cluster_models) == 0:
+            self.cluster_models = nn.ModuleList()
+            self.cluster_sizes = {}
+            for cluster_idx in range(self.num_clusters):
+                cluster_mask = (cluster_assignments == cluster_idx)
+                if not cluster_mask.any():
+                    continue
+                cluster_channels = torch.where(cluster_mask)[0]
+                num_channels = len(cluster_channels)
+                self.cluster_sizes[cluster_idx] = num_channels
+                
+                # Create args for this cluster
+                cluster_args = type('Args', (), {
+                    'enc_in': num_channels,
+                    'seq_len': self.in_len,
+                    'pred_len': self.out_len,
+                    'd_model': self.d_model,
+                    'd_ff': self.d_ff,
+                    'cuda': str(self.device).split(':')[-1]
+                })()
+                
+                # Create cluster-specific model
+                self.cluster_models.append(ClusterTSMixer(num_channels, cluster_args))
+        
+        # Process each cluster
+        model_idx = 0
         for cluster_idx in range(self.num_clusters):
             cluster_mask = (cluster_assignments == cluster_idx)
             if not cluster_mask.any():
@@ -63,22 +101,13 @@ class TSMixerH(nn.Module):
             cluster_channels = torch.where(cluster_mask)[0]
             cluster_input = x[:, :, cluster_channels]
             
-            # Create temporary args for cluster model
-            cluster_args = type('Args', (), {
-                'enc_in': len(cluster_channels),  # Set enc_in to number of channels in cluster
-                'seq_len': self.in_len,
-                'pred_len': self.out_len,
-                'd_model': self.d_model,
-                'd_ff': self.d_ff,
-                'cuda': str(self.device).split(':')[-1]
-            })()
-            
             # Process with corresponding model
-            cluster_output = self.cluster_models[cluster_idx](cluster_input)
+            cluster_output = self.cluster_models[model_idx](cluster_input)
+            model_idx += 1
             
             # Place outputs back in correct positions
             outputs[:, :, cluster_channels] = cluster_output
-            
+        
         # Apply inverse normalization
         outputs = self.rev_in(outputs, 'denorm')
         return outputs
