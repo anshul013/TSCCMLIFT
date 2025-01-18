@@ -15,6 +15,7 @@ import time
 import json
 import pickle
 from torchinfo import summary
+from torch.cuda.amp import GradScaler
 
 class Exp_HCM(Exp_Basic):
     def __init__(self, args):
@@ -127,16 +128,24 @@ class Exp_HCM(Exp_Basic):
         early_stopping = EarlyStopping(patience=self.args.patience, verbose=True)
         
         model_optim = self._select_optimizer()
-        criterion = nn.MSELoss()
+        criterion = self._select_criterion()
 
+        if self.args.use_amp:
+            scaler = GradScaler()
+        
         best_model_path = path + '/' + 'checkpoint.pth'
         if os.path.exists(best_model_path):
-            # Get first batch for initialization
-            first_batch = next(iter(train_loader))[0]  # Get X from (X, y) tuple
-            # Load model with initialization
-            state_dict = torch.load(best_model_path)
-            self.model.load_state_dict_with_init(state_dict, first_batch)
-            print('Successfully loaded previous checkpoint')
+            try:
+                # Get first batch for initialization
+                first_batch = next(iter(train_loader))[0]  # Get X from (X, y) tuple
+                # Load model with initialization
+                state_dict = torch.load(best_model_path)
+                self.model.load_state_dict_with_init(state_dict, first_batch)
+                print('Successfully loaded previous checkpoint')
+            except Exception as e:
+                print(f"Warning: Could not load previous checkpoint. Starting fresh. Error: {str(e)}")
+                if os.path.exists(best_model_path):
+                    os.remove(best_model_path)  # Remove potentially corrupted checkpoint
         
         for epoch in range(self.args.train_epochs):
             iter_count = 0

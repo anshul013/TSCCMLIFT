@@ -75,14 +75,20 @@ class TSMixerH(nn.Module):
     
     def load_state_dict_with_init(self, state_dict, x):
         """Load state dict after initializing clusters with given data"""
-        # First initialize clusters
-        self.initialize_clusters(x)
-        # Now try to load the state dict
         try:
-            self.load_state_dict(state_dict)
-        except:
-            print("Warning: Could not load previous state dict. Starting with fresh weights.")
-            pass
+            # First initialize clusters
+            self.initialize_clusters(x)
+            # Now try to load the state dict
+            try:
+                self.load_state_dict(state_dict)
+                print("Successfully loaded state dict with matching cluster sizes")
+            except:
+                print("Warning: Could not load previous state dict. Starting with fresh weights.")
+                # Don't raise the exception - we'll continue with fresh weights
+                pass
+        except Exception as e:
+            print(f"Error during cluster initialization: {str(e)}")
+            raise e
     
     def forward(self, x, if_update=False):
         batch_size = x.shape[0]
