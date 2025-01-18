@@ -2,38 +2,24 @@ import torch
 import torch.nn as nn
 from models.hcm1.preprocessor import HardClusterAssigner
 from models.Rev_in import RevIN
-from models.TSMixer import Model as TSMixer
+from models.hcm1.blocks import TSMixerBlock
 
 class ClusterTSMixer(nn.Module):
     """TSMixer model adapted for cluster-specific processing"""
     def __init__(self, num_features, args):
         super().__init__()
-        self.rev_norm = RevIN(num_features=num_features)
-        
-        # Create complete args for TSMixer
-        cluster_args = type('Args', (), {
-            'enc_in': num_features,
-            'seq_len': args.seq_len,
-            'pred_len': args.pred_len,
-            'd_model': args.d_model,
-            'd_ff': args.d_ff,
-            'cuda': args.cuda,
-            'num_blocks': args.n_layers,  # Using n_layers as num_blocks
-            'individual': False,
-            'dropout': args.dropout,
-            'activation': args.activation,
-            'hidden_size': args.d_model,  # Using d_model as hidden_size
-            'data': args.data,  # Add data parameter
-            'batch_size': args.batch_size  # Add batch_size parameter
-        })()
-        
-        self.model = TSMixer(cluster_args)
+        self.model = TSMixerBlock(
+            in_len=args.seq_len,
+            out_len=args.pred_len,
+            d_model=args.d_model,
+            d_ff=args.d_ff,
+            n_layers=args.n_layers,
+            enc_in=num_features,
+            dropout=args.dropout
+        )
         
     def forward(self, x):
-        x = self.rev_norm(x, 'norm')
-        x = self.model(x)
-        x = self.rev_norm(x, 'denorm')
-        return x
+        return self.model(x)
 
 class TSMixerH(nn.Module):
     """Hard Clustering variant of TSMixer"""
@@ -48,7 +34,7 @@ class TSMixerH(nn.Module):
         self.d_model = args.d_model
         self.device = torch.device(f"cuda:{args.cuda}" if torch.cuda.is_available() else "cpu")
         self.enc_in = args.enc_in
-        self.args = args  # Store args for cluster models
+        self.args = args
         
         # Normalization layer for full input
         self.rev_in = RevIN(num_features=args.enc_in)
@@ -61,7 +47,7 @@ class TSMixerH(nn.Module):
             device=self.device
         )
         
-        # Initialize cluster models list (will be populated in forward pass)
+        # Initialize cluster models list
         self.cluster_models = nn.ModuleList()
         self.cluster_sizes = {}
         
