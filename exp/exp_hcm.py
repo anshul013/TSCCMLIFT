@@ -120,18 +120,10 @@ class Exp_HCM(Exp_Basic):
         with open(os.path.join(path, "args.json"), 'w') as f:
             json.dump(vars(self.args), f, indent=True)
 
-        scale_statistic = {'mean': train_data.scaler.mean, 'std': train_data.scaler.std}
-        with open(os.path.join(path, "scale_statistic.pkl"), 'wb') as f:
-            pickle.dump(scale_statistic, f)
-
         train_steps = len(train_loader)
         early_stopping = EarlyStopping(patience=self.args.patience, verbose=True)
         
         model_optim = self._select_optimizer()
-        criterion = self._select_criterion()
-
-        if self.args.use_amp:
-            scaler = GradScaler()
         
         best_model_path = path + '/' + 'checkpoint.pth'
         if os.path.exists(best_model_path):
