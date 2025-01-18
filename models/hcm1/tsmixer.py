@@ -52,40 +52,54 @@ class TSMixerH(nn.Module):
         self.cluster_models = nn.ModuleList().to(self.device)
         self.cluster_sizes = {}
         
+    def initialize_clusters(self, x):
+        """Initialize clusters and models with fixed assignments"""
+        x = x.to(self.device)
+        # Force cluster update
+        cluster_assignments = self.cluster_assigner(x, if_update=True)
+        
+        # Create new cluster models
+        self.cluster_models = nn.ModuleList()
+        self.cluster_sizes = {}
+        
+        for cluster_idx in range(self.num_clusters):
+            cluster_mask = (cluster_assignments == cluster_idx)
+            if not cluster_mask.any():
+                continue
+            cluster_channels = torch.where(cluster_mask)[0]
+            num_channels = len(cluster_channels)
+            self.cluster_sizes[cluster_idx] = num_channels
+            
+            # Create cluster-specific model
+            self.cluster_models.append(ClusterTSMixer(num_channels, self.args))
+    
+    def load_state_dict_with_init(self, state_dict, x):
+        """Load state dict after initializing clusters with given data"""
+        # First initialize clusters
+        self.initialize_clusters(x)
+        # Now try to load the state dict
+        try:
+            self.load_state_dict(state_dict)
+        except:
+            print("Warning: Could not load previous state dict. Starting with fresh weights.")
+            pass
+    
     def forward(self, x, if_update=False):
-        """
-        Args:
-            x: Input tensor of shape [batch_size, seq_len, n_vars]
-            if_update: Boolean indicating whether to update cluster assignments
-        Returns:
-            outputs: Output tensor of shape [batch_size, pred_len, n_vars]
-        """
         batch_size = x.shape[0]
         x = x.to(self.device)
+        
+        # Initialize clusters if not done yet
+        if len(self.cluster_models) == 0:
+            self.initialize_clusters(x)
         
         # Apply RevIN normalization
         x = self.rev_in(x, 'norm')
         
-        # Get cluster assignments
+        # Get cluster assignments (without updating if not requested)
         cluster_assignments = self.cluster_assigner(x, if_update)
         
         # Initialize output tensor
         outputs = torch.zeros(batch_size, self.out_len, self.enc_in).to(self.device)
-        
-        # Create or update cluster models if needed
-        if if_update or len(self.cluster_models) == 0:
-            self.cluster_models = nn.ModuleList().to(self.device)
-            self.cluster_sizes = {}
-            for cluster_idx in range(self.num_clusters):
-                cluster_mask = (cluster_assignments == cluster_idx)
-                if not cluster_mask.any():
-                    continue
-                cluster_channels = torch.where(cluster_mask)[0]
-                num_channels = len(cluster_channels)
-                self.cluster_sizes[cluster_idx] = num_channels
-                
-                # Create cluster-specific model
-                self.cluster_models.append(ClusterTSMixer(num_channels, self.args))
         
         # Process each cluster
         model_idx = 0

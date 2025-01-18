@@ -129,6 +129,15 @@ class Exp_HCM(Exp_Basic):
         model_optim = self._select_optimizer()
         criterion = nn.MSELoss()
 
+        best_model_path = path + '/' + 'checkpoint.pth'
+        if os.path.exists(best_model_path):
+            # Get first batch for initialization
+            first_batch = next(iter(train_loader))[0]  # Get X from (X, y) tuple
+            # Load model with initialization
+            state_dict = torch.load(best_model_path)
+            self.model.load_state_dict_with_init(state_dict, first_batch)
+            print('Successfully loaded previous checkpoint')
+        
         for epoch in range(self.args.train_epochs):
             iter_count = 0
             train_loss = []
