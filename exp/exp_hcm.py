@@ -184,9 +184,14 @@ class Exp_HCM(Exp_Basic):
 
             adjust_learning_rate(model_optim, epoch+1, self.args)
             
-        # Load best model and save state dict properly
+        # Load best model using our custom method with initialization
         best_model_path = path + '/' + 'checkpoint.pth'
-        self.model.load_state_dict(torch.load(best_model_path))
+        # Get first batch for initialization
+        first_batch = next(iter(train_loader))[0]
+        state_dict = torch.load(best_model_path)
+        self.model.load_state_dict_with_init(state_dict, first_batch)
+        
+        # Save the properly initialized state
         state_dict = self.model.module.state_dict() if isinstance(self.model, DataParallel) else self.model.state_dict()
         torch.save(state_dict, path + '/' + 'checkpoint.pth')
         
