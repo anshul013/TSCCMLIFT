@@ -124,6 +124,7 @@ class Exp_HCM(Exp_Basic):
         early_stopping = EarlyStopping(patience=self.args.patience, verbose=True)
         
         model_optim = self._select_optimizer()
+        criterion = nn.MSELoss()  # Simple MSE loss as used in CCM
         
         best_model_path = path + '/' + 'checkpoint.pth'
         if os.path.exists(best_model_path):
