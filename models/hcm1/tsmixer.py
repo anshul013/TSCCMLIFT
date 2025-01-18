@@ -21,7 +21,10 @@ class ClusterTSMixer(nn.Module):
             'num_blocks': args.n_layers,  # Using n_layers as num_blocks
             'individual': False,
             'dropout': args.dropout,
-            'activation': args.activation
+            'activation': args.activation,
+            'hidden_size': args.d_model,  # Using d_model as hidden_size
+            'data': args.data,  # Add data parameter
+            'batch_size': args.batch_size  # Add batch_size parameter
         })()
         
         self.model = TSMixer(cluster_args)
