@@ -128,7 +128,7 @@ class TSMixerBlock(nn.Module):
             self.to(device)
         
         # Apply RevIN normalization
-        x = self.rev_norm(x, 'norm')
+        # x = self.rev_norm(x, 'norm')
         
         # Apply mixer blocks
         for _ in range(self.num_blocks):
@@ -142,5 +142,5 @@ class TSMixerBlock(nn.Module):
             y[:, c, :] = self.output_linear_layers[c](x[:, c, :].clone())
             
         y = torch.swapaxes(y, 1, 2)
-        y = self.rev_norm(y, 'denorm')
+        # y = self.rev_norm(y, 'denorm')
         return y 
