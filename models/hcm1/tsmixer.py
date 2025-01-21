@@ -48,57 +48,60 @@ class TSMixerH(nn.Module):
         ).to(self.device)
         
         # Initialize cluster models list
-        self.cluster_models = nn.ModuleList([
-            TSMixerBlock(
-                in_len=self.in_len,
-                out_len=self.out_len,
-                d_ff=self.d_ff,
-                n_layers=args.n_layers,
-                enc_in=args.enc_in,
-                dropout=args.dropout
-            ).to(self.device) for _ in range(self.num_clusters)
-        ]).to(self.device)
+        # self.cluster_models = nn.ModuleList([
+        #     TSMixerBlock(
+        #         in_len=self.in_len,
+        #         out_len=self.out_len,
+        #         d_ff=self.d_ff,
+        #         n_layers=args.n_layers,
+        #         enc_in=args.enc_in,
+        #         dropout=args.dropout
+        #     ).to(self.device) for _ in range(self.num_clusters)
+        # ]).to(self.device)
         # Initialize cluster models list
-        # self.cluster_models = nn.ModuleList().to(self.device)
-        # self.cluster_sizes = {}
+        self.cluster_models = nn.ModuleList().to(self.device)
+        self.cluster_sizes = {}
         
-    # def initialize_clusters(self, x):
-    #     """Initialize clusters and models with fixed assignments"""
-    #     x = x.to(self.device)
-    #     # Force cluster update
-    #     cluster_assignments = self.cluster_assigner(x, if_update=True)
+    def initialize_clusters(self, x):
+        """Initialize clusters and models with fixed assignments"""
+        x = x.to(self.device)
+        # Force cluster update
+        cluster_assignments = self.cluster_assigner(x, if_update=True)
         
-    #     # Create new cluster models
-    #     self.cluster_models = nn.ModuleList()
-    #     self.cluster_sizes = {}
+        # Create new cluster models
+        self.cluster_models = nn.ModuleList()
+        self.cluster_sizes = {}
         
-    #     for cluster_idx in range(self.num_clusters):
-    #         cluster_mask = (cluster_assignments == cluster_idx)
-    #         if not cluster_mask.any():
-    #             continue
-    #         cluster_channels = torch.where(cluster_mask)[0]
-    #         num_channels = len(cluster_channels)
-    #         self.cluster_sizes[cluster_idx] = num_channels
+        for cluster_idx in range(self.num_clusters):
+            cluster_mask = (cluster_assignments == cluster_idx)
+            if not cluster_mask.any():
+                continue
+            cluster_channels = torch.where(cluster_mask)[0]
+            num_channels = len(cluster_channels)
+            self.cluster_sizes[cluster_idx] = num_channels
             
-    #         # Create cluster-specific model
-    #         self.cluster_models.append(ClusterTSMixer(num_channels, self.args))
+            # Create cluster-specific model
+            self.cluster_models.append(ClusterTSMixer(num_channels, self.args).to(self.device))
+        
+        self.cluster_models = self.cluster_models.to(self.device)
+        return cluster_assignments
     
-    # def load_state_dict_with_init(self, state_dict, x):
-    #     """Load state dict after initializing clusters with given data"""
-    #     try:
-    #         # First initialize clusters
-    #         self.initialize_clusters(x)
-    #         # Now try to load the state dict
-    #         try:
-    #             self.load_state_dict(state_dict)
-    #             print("Successfully loaded state dict with matching cluster sizes")
-    #         except:
-    #             print("Warning: Could not load previous state dict. Starting with fresh weights.")
-    #             # Don't raise the exception - we'll continue with fresh weights
-    #             pass
-    #     except Exception as e:
-    #         print(f"Error during cluster initialization: {str(e)}")
-    #         raise e
+    def load_state_dict_with_init(self, state_dict, x):
+        """Load state dict after initializing clusters with given data"""
+        try:
+            # First initialize clusters
+            self.initialize_clusters(x)
+            # Now try to load the state dict
+            try:
+                self.load_state_dict(state_dict)
+                print("Successfully loaded state dict with matching cluster sizes")
+            except:
+                print("Warning: Could not load previous state dict. Starting with fresh weights.")
+                # Don't raise the exception - we'll continue with fresh weights
+                pass
+        except Exception as e:
+            print(f"Error during cluster initialization: {str(e)}")
+            raise e
     
     def forward(self, x, if_update=False):
         batch_size = x.shape[0]

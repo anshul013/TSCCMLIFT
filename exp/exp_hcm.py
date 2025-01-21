@@ -186,12 +186,12 @@ class Exp_HCM(Exp_Basic):
             
         # Load best model using our custom method with initialization
         best_model_path = path + '/' + 'checkpoint.pth'
-        self.model.load_state_dict(torch.load(best_model_path))
+        # self.model.load_state_dict(torch.load(best_model_path))
 
         # Get first batch for initialization
-        # first_batch = next(iter(train_loader))[0]
-        # state_dict = torch.load(best_model_path)
-        # self.model.load_state_dict_with_init(state_dict, first_batch)
+        first_batch = next(iter(train_loader))[0]
+        state_dict = torch.load(best_model_path)
+        self.model.load_state_dict_with_init(state_dict, first_batch)
         
         # Handle DataParallel and save state
         state_dict = self.model.module.state_dict() if isinstance(self.model, DataParallel) else self.model.state_dict()
