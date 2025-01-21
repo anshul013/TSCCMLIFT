@@ -22,9 +22,8 @@ python3 -u run_longExp.py \
   --num_clusters 3 \
   --clustering_method 'kmeans' \
   --cluster_update_interval 5 \
-  --n_layers 2 \
-  --d_model 128 \
-  --d_ff 128 \
+  --n_layers 6 \
+  --d_ff 512 \
   --in_len $seq_len \
   --out_len $pred_len \
   --is_training 1 \
@@ -50,9 +49,8 @@ python3 -u run_longExp.py \
 #   --num_clusters 3 \
 #   --clustering_method 'kmeans' \
 #   --cluster_update_interval 5 \
-#   --n_layers 2 \
-#   --d_model 128 \
-#   --d_ff 128 \
+#   --n_layers 4 \
+#   --d_ff 256 \
 #   --in_len $seq_len \
 #   --out_len $pred_len \
 #   --is_training 1 \
@@ -78,9 +76,8 @@ python3 -u run_longExp.py \
 #   --num_clusters 3 \
 #   --clustering_method 'kmeans' \
 #   --cluster_update_interval 5 \
-#   --n_layers 2 \
-#   --d_model 128 \
-#   --d_ff 128 \
+#   --n_layers 4 \
+#   --d_ff 256 \
 #   --in_len $seq_len \
 #   --out_len $pred_len \
 #   --is_training 1 \
@@ -107,8 +104,7 @@ python3 -u run_longExp.py \
 #   --clustering_method 'kmeans' \
 #   --cluster_update_interval 5 \
 #   --n_layers 2 \
-#   --d_model 128 \
-#   --d_ff 128 \
+#   --d_ff 64 \
 #   --in_len $seq_len \
 #   --out_len $pred_len \
 #   --is_training 1 \
