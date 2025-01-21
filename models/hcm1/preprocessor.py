@@ -7,16 +7,19 @@ from sklearn.metrics import silhouette_score
 
 class HardClusterAssigner(nn.Module):
     """Module for hard clustering of channels"""
-    def __init__(self, n_vars, num_clusters, method='kmeans', device='cpu'):
+    def __init__(self, n_vars, num_clusters, method='kmeans', device='cpu', random_state=42):
         super().__init__()
         self.n_vars = n_vars
         self.num_clusters = num_clusters
         self.method = method
         self.device = device
         
-        # Initialize clusterer
+        # Initialize clusterer with fixed random state
         if method == 'kmeans':
-            self.clusterer = KMeans(n_clusters=num_clusters)
+            self.clusterer = KMeans(
+                n_clusters=num_clusters,
+                random_state=random_state  # Add fixed random state
+            )
         else:
             raise ValueError(f"Unknown clustering method: {method}")
         
