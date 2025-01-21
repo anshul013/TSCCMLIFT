@@ -12,7 +12,6 @@ class ClusterTSMixer(nn.Module):
         self.model = TSMixerBlock(
             in_len=args.seq_len,
             out_len=args.pred_len,
-            d_model=args.d_model,
             d_ff=args.d_ff,
             n_layers=args.n_layers,
             enc_in=num_features,
@@ -32,7 +31,6 @@ class TSMixerH(nn.Module):
         self.out_len = args.pred_len
         self.num_clusters = args.num_clusters
         self.d_ff = args.d_ff
-        self.d_model = args.d_model
         self.device = torch.device(f"cuda:{args.cuda}" if torch.cuda.is_available() else "cpu")
         self.enc_in = args.enc_in
         self.args = args

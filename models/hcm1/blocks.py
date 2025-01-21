@@ -76,7 +76,7 @@ class MixerBlock(nn.Module):
 
 class TSMixerBlock(nn.Module):
     """TSMixer block for processing clustered variables"""
-    def __init__(self, in_len, out_len, d_model, d_ff, n_layers, enc_in, dropout=0.1):
+    def __init__(self, in_len, out_len, d_ff, n_layers, enc_in, dropout=0.1):
         super().__init__()
         self.num_blocks = n_layers
         self.channels = enc_in
