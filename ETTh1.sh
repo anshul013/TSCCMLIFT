@@ -21,7 +21,6 @@ python3 -u run_longExp.py \
   --dropout 0.9 \
   --num_clusters 3 \
   --clustering_method 'kmeans' \
-  --cluster_update_interval 5 \
   --n_layers 6 \
   --d_ff 512 \
   --in_len $seq_len \
