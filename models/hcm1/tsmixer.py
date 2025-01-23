@@ -158,6 +158,8 @@ class TSMixerH(nn.Module):
             
             # Process with corresponding model
             cluster_output = self.cluster_models[model_idx](cluster_input)
+            # Transpose cluster_output to match target shape
+            cluster_output = cluster_output.transpose(1, 2)
             model_idx += 1
             
             # Place outputs back in correct positions
