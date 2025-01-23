@@ -92,8 +92,6 @@ parser.add_argument('--padding_patch', type=str, default='end', help='None: None
 # Add HCM specific arguments
 parser.add_argument('--num_clusters', type=int, default=3, help='Number of clusters for HCM')
 parser.add_argument('--clustering_method', type=str, default='kmeans', choices=['kmeans', 'hierarchical'], help='Clustering method for HCM')
-parser.add_argument('--cluster_update_interval', type=int, default=5, help='Number of epochs between cluster updates')
-parser.add_argument('--cluster_feature_dim', type=int, default=4, help='Dimension of features used for clustering')
 
 # Mixers
 parser.add_argument('--num_blocks', type=int, default=3, help='number of mixer blocks to be used in TSMixer')
@@ -232,7 +230,6 @@ if args.is_training:
                 args.out_len,
                 args.num_clusters,
                 args.clustering_method,
-                args.cluster_update_interval,
                 args.d_model,
                 args.n_layers,
                 ii)
