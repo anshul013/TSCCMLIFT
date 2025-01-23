@@ -124,5 +124,6 @@ class TSMixerBlock(nn.Module):
             if not self.output_linear_layers[c].weight.is_cuda:
                 print(f"Warning: Output layer {c} is not on GPU")
             y[:, c, :] = self.output_linear_layers[c](x[:, c, :])
-            
+        
+        y = torch.swapaxes(y, 1, 2)
         return y 
