@@ -53,7 +53,7 @@ class TSMixerH(nn.Module):
                 out_len=self.out_len,
                 d_ff=self.d_ff,
                 n_layers=args.n_layers,
-                enc_in=self.enc_in // args.num_clusters + 1,  # Ensure enough capacity
+                enc_in=self.enc_in,  # Ensure enough capacity
                 dropout=args.dropout
             ) for _ in range(self.num_clusters)
         ])
