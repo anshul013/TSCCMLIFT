@@ -46,17 +46,9 @@ class TSMixerH(nn.Module):
             device=self.device
         )
         
-        # Initialize cluster models immediately
-        self.cluster_models = nn.ModuleList([
-            TSMixerBlock(
-                in_len=self.in_len,
-                out_len=self.out_len,
-                d_ff=self.d_ff,
-                n_layers=args.n_layers,
-                enc_in=self.enc_in,  # Ensure enough capacity
-                dropout=args.dropout
-            ) for _ in range(self.num_clusters)
-        ])
+        # Initialize empty ModuleList for cluster models
+        self.cluster_models = nn.ModuleList()
+        self.cluster_sizes = {}
         
         # Move everything to device
         self.to(self.device)
@@ -67,12 +59,28 @@ class TSMixerH(nn.Module):
         # Force cluster update using full data
         cluster_assignments = self.cluster_assigner(full_data, if_update=True)
         
-        # Store cluster sizes for monitoring
+        # Create cluster models based on assignments
+        self.cluster_models = nn.ModuleList()
         self.cluster_sizes = {}
+        
         for cluster_idx in range(self.num_clusters):
             cluster_mask = (cluster_assignments == cluster_idx)
             if cluster_mask.any():
-                self.cluster_sizes[cluster_idx] = torch.sum(cluster_mask).item()
+                cluster_channels = torch.where(cluster_mask)[0]
+                num_channels = len(cluster_channels)
+                self.cluster_sizes[cluster_idx] = num_channels
+                
+                # Create cluster-specific model with correct number of channels
+                self.cluster_models.append(
+                    TSMixerBlock(
+                        in_len=self.in_len,
+                        out_len=self.out_len,
+                        d_ff=self.d_ff,
+                        n_layers=self.args.n_layers,
+                        enc_in=num_channels,  # Use actual number of channels in cluster
+                        dropout=self.args.dropout
+                    ).to(self.device)
+                )
         
         print(f"Initial cluster assignments: {cluster_assignments.cpu().numpy()}")
         print(f"Cluster sizes: {self.cluster_sizes}")
@@ -93,6 +101,7 @@ class TSMixerH(nn.Module):
         outputs = torch.zeros(batch_size, self.out_len, self.enc_in).to(self.device)
         
         # Process each cluster
+        model_idx = 0
         for cluster_idx in range(self.num_clusters):
             cluster_mask = (cluster_assignments == cluster_idx)
             if not cluster_mask.any():
@@ -103,7 +112,8 @@ class TSMixerH(nn.Module):
             cluster_input = x[:, :, cluster_channels]
             
             # Process with corresponding model
-            cluster_output = self.cluster_models[cluster_idx](cluster_input)
+            cluster_output = self.cluster_models[model_idx](cluster_input)
+            model_idx += 1
             
             # Place outputs back in correct positions
             outputs[:, :, cluster_channels] = cluster_output
