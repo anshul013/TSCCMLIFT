@@ -1,6 +1,6 @@
 from data_provider.data_loader import Dataset_MTS
 from exp.exp_basic import Exp_Basic
-from models.hcm1.tsmixer import TSMixerH
+from models.hcm1.tsmixer import TSMixerH, TMixerH
 from utils.tools import EarlyStopping, adjust_learning_rate
 from utils.ccm.metrics import metric
 
@@ -24,7 +24,8 @@ class Exp_HCM(Exp_Basic):
     
     def _build_model(self):
         model_dict = {
-            'TSMixerH': TSMixerH
+            'TSMixerH': TSMixerH,
+            'TMixerH': TMixerH
         }
         model = model_dict[self.args.model](self.args).float()
         
