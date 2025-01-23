@@ -157,8 +157,7 @@ class TMixerBlock(nn.Module):
                 channels=self.channels,
                 seq_len=self.in_len,
                 dropout_factor=self.dropout,
-                activation='relu',
-                single_layer_mixer=False
+                activation='relu'
             ) for _ in range(self.num_layers)
         ])
         
