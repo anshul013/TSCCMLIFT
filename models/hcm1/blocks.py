@@ -78,27 +78,24 @@ class TSMixerBlock(nn.Module):
     """TSMixer block for processing clustered variables"""
     def __init__(self, in_len, out_len, d_ff, n_layers, enc_in, dropout=0.1):
         super().__init__()
-        self.num_blocks = n_layers
+        self.num_layers = n_layers
         self.channels = enc_in
         self.pred_len = out_len
         self.in_len = in_len
         self.d_ff = d_ff
         self.dropout = dropout
         
-        # Create components with initial size
-        self._create_components()
-
-    def _create_components(self):
-        """Create or recreate all components with current channel size"""
-        # Create mixer block
-        self.mixer_block = MixerBlock(
-            channels=self.channels,
-            features_block_mlp_dims=self.d_ff,
-            seq_len=self.in_len,
-            dropout_factor=self.dropout,
-            activation='relu',
-            single_layer_mixer=False
-        )
+        # Create mixer layers
+        self.mixer_layers = nn.ModuleList([
+            MixerBlock(
+                channels=self.channels,
+                features_block_mlp_dims=self.d_ff,
+                seq_len=self.in_len,
+                dropout_factor=self.dropout,
+                activation='relu',
+                single_layer_mixer=False
+            ) for _ in range(self.num_layers)
+        ])
         
         # RevIN normalization
         self.rev_norm = RevIN(num_features=self.channels)
@@ -108,39 +105,25 @@ class TSMixerBlock(nn.Module):
             nn.Linear(self.in_len, self.pred_len) for _ in range(self.channels)
         ])
 
-    def to(self, device):
-        """Ensures all submodules are on the correct device"""
-        super().to(device)
-        self.mixer_block = self.mixer_block.to(device)
-        self.rev_norm = self.rev_norm.to(device)
-        self.output_linear_layers = self.output_linear_layers.to(device)
-        return self
-
     def forward(self, x):
-        device = x.device
-        # Ensure all components are on the same device
-        self = self.to(device)
+        # Verify device
+        if not x.is_cuda:
+            print("Warning: Input tensor is not on GPU")
         
-        # Recreate components if channel size has changed
-        if x.size(2) != self.channels:
-            self.channels = x.size(2)
-            self._create_components()
-            self.to(device)
+        # Apply mixer layers sequentially
+        for layer in self.mixer_layers:
+            if not next(layer.parameters()).is_cuda:
+                print(f"Warning: Layer {layer} is not on GPU")
+            x = layer(x)
         
-        # Apply RevIN normalization
-        # x = self.rev_norm(x, 'norm')
-        
-        # Apply mixer blocks
-        for _ in range(self.num_blocks):
-            x = self.mixer_block(x)
-            
-        # Project to prediction length
+        # Project to output length
+        y = torch.zeros([x.size(0), self.channels, self.pred_len], 
+                       dtype=x.dtype, device=x.device)
         x = torch.swapaxes(x, 1, 2)
-        y = torch.zeros([x.size(0), x.size(1), self.pred_len], dtype=x.dtype, device=device)
         
         for c in range(self.channels):
-            y[:, c, :] = self.output_linear_layers[c](x[:, c, :].clone())
+            if not self.output_linear_layers[c].weight.is_cuda:
+                print(f"Warning: Output layer {c} is not on GPU")
+            y[:, c, :] = self.output_linear_layers[c](x[:, c, :])
             
-        y = torch.swapaxes(y, 1, 2)
-        # y = self.rev_norm(y, 'denorm')
         return y 
