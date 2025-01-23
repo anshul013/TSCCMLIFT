@@ -81,10 +81,12 @@ class TSMixerH(nn.Module):
                         dropout=self.args.dropout
                     ).to(self.device)
                 )
+                
         
         print(f"Initial cluster assignments: {cluster_assignments.cpu().numpy()}")
         print(f"Cluster sizes: {self.cluster_sizes}")
-        
+        # Register cluster_models as a module
+        self.cluster_models = nn.ModuleList(self.cluster_models)
         return cluster_assignments
     
     def forward(self, x):

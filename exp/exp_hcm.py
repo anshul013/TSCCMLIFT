@@ -27,7 +27,23 @@ class Exp_HCM(Exp_Basic):
             'TSMixerH': TSMixerH
         }
         model = model_dict[self.args.model](self.args).float()
+        
+        # Get initial data for clustering
+        train_data, train_loader = self._get_data(flag='train')
+        full_data = []
+        with torch.no_grad():
+            for i, (batch_x, batch_y) in enumerate(train_loader):
+                full_data.append(batch_x)
+        full_data = torch.cat(full_data, dim=0).to(self.device)
+    
+        # Initialize clusters first
+        print("Initializing clusters with full training data...")
+        model.initialize_clusters(full_data)
+        
+        # Print model summary after cluster initialization
+        print("\nModel Architecture:")
         summary(model)
+        
         return model
 
     def _get_data(self, flag):
@@ -104,21 +120,6 @@ class Exp_HCM(Exp_Basic):
         return mse, total_loss, mae
                     
     def train(self, setting):
-        # train_data, train_loader = self._get_data(flag='train')
-        # vali_data, vali_loader = self._get_data(flag='val')
-        # test_data, test_loader = self._get_data(flag='test')
-
-        # path = os.path.join(self.args.checkpoints, setting)
-        # if not os.path.exists(path):
-        #     os.makedirs(path)
-
-        # with open(os.path.join(path, "args.json"), 'w') as f:
-        #     json.dump(vars(self.args), f, indent=True)
-
-        # train_steps = len(train_loader)
-        # early_stopping = EarlyStopping(patience=self.args.patience, verbose=True)
-        
-        # model_optim = self._select_optimizer()
         train_data, train_loader = self._get_data(flag='train')
         vali_data, vali_loader = self._get_data(flag='val')
         test_data, test_loader = self._get_data(flag='test')
@@ -136,19 +137,23 @@ class Exp_HCM(Exp_Basic):
         criterion = nn.MSELoss()
 
         # Get full training data for clustering
-        print("Collecting full training data for clustering initialization...")
-        full_data = []
-        with torch.no_grad():
-            for i, (batch_x, batch_y) in enumerate(train_loader):
-                full_data.append(batch_x)
-        full_data = torch.cat(full_data, dim=0).to(self.device)
+        # print("Collecting full training data for clustering initialization...")
+        # full_data = []
+        # with torch.no_grad():
+        #     for i, (batch_x, batch_y) in enumerate(train_loader):
+        #         full_data.append(batch_x)
+        # full_data = torch.cat(full_data, dim=0).to(self.device)
         # for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(train_loader):
         #     full_data.append(batch_x)
         # full_data = torch.cat(full_data, dim=0)  # [total_samples, seq_len, channels]
     
         # Initialize clusters with full data once
-        print("Initializing clusters with full training data...")
-        self.model.initialize_clusters(full_data)
+        # print("Initializing clusters with full training data...")
+        # self.model.initialize_clusters(full_data)
+        
+        # Save model architecture and initial settings
+        with open(os.path.join(path, "args.json"), 'w') as f:
+            json.dump(vars(self.args), f, indent=True)
         
         # Print initial cluster assignments
         print("Initial cluster assignments:", self.model.get_current_assignments())
@@ -188,8 +193,8 @@ class Exp_HCM(Exp_Basic):
                 break
 
             adjust_learning_rate(model_optim, epoch+1, self.args)
-            
-        # Load best model using standard method
+        
+        # Load best model
         best_model_path = path + '/' + 'checkpoint.pth'
         # self.model.load_state_dict(torch.load(best_model_path))
 
@@ -200,8 +205,8 @@ class Exp_HCM(Exp_Basic):
         # self.model.load_state_dict_with_init(state_dict, first_batch)
         
         # Handle DataParallel and save state
-        state_dict = self.model.module.state_dict() if isinstance(self.model, DataParallel) else self.model.state_dict()
-        torch.save(state_dict, path + '/' + 'checkpoint.pth')
+        # state_dict = self.model.module.state_dict() if isinstance(self.model, DataParallel) else self.model.state_dict()
+        # torch.save(state_dict, path + '/' + 'checkpoint.pth')
         
         return self.model
 
