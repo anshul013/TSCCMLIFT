@@ -223,7 +223,7 @@ if args.is_training:
                 args.n_layers,
                 ii)
         elif args.model == 'TSMixerH':  # Add this condition for HCM
-            setting = '{}_{}_il{}_ol{}_nc{}_cm{}_ui{}_dm{}_nl{}_itr{}'.format(
+            setting = '{}_{}_il{}_ol{}_nc{}_cm{}_dm{}_nl{}_itr{}'.format(
                 args.model_id,
                 args.model,
                 args.in_len,
