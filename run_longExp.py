@@ -198,7 +198,7 @@ print(args)
 # Select experiment class based on model
 if args.model == 'TSMixerC':
     Exp = Exp_CCM
-elif args.model == 'TSMixerH':
+elif args.model == 'TSMixerH' or args.model == 'TMixerH':
     Exp = Exp_HCM
 else:
     Exp = Exp_Main
@@ -223,6 +223,17 @@ if args.is_training:
                 args.n_layers,
                 ii)
         elif args.model == 'TSMixerH':  # Add this condition for HCM
+            setting = '{}_{}_il{}_ol{}_nc{}_cm{}_dm{}_nl{}_itr{}'.format(
+                args.model_id,
+                args.model,
+                args.in_len,
+                args.out_len,
+                args.num_clusters,
+                args.clustering_method,
+                args.d_model,
+                args.n_layers,
+                ii)
+        elif args.model == 'TMixerH':
             setting = '{}_{}_il{}_ol{}_nc{}_cm{}_dm{}_nl{}_itr{}'.format(
                 args.model_id,
                 args.model,
