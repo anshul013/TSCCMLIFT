@@ -18,7 +18,7 @@ num_channels=7
 pred_len=96
 python3 -u run_longExp.py \
   --activation 'relu' \
-  --dropout 0.2 \
+  --dropout 0.9 \
   --num_clusters 3 \
   --clustering_method 'kmeans' \
   --n_layers 6 \
@@ -36,7 +36,7 @@ python3 -u run_longExp.py \
   --pred_len $pred_len \
   --enc_in $num_channels \
   --des 'Exp' \
-  --patience 10 \
+  --patience 5 \
   --train_epochs 100 \
   --itr 1 --batch_size 32 --learning_rate 0.0001 >logs/LongForecasting/$model_name'/'$dataset'_'$seq_len'_'$pred_len.log
 # pred_len=96
