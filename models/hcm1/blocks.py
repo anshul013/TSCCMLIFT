@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-from models.Rev_in import RevIN
 
 class MlpBlockFeatures(nn.Module):
     """MLP for features"""
@@ -98,7 +97,7 @@ class TSMixerBlock(nn.Module):
         ])
         
         # RevIN normalization
-        self.rev_norm = RevIN(num_features=self.channels)
+        # self.rev_norm = RevIN(num_features=self.channels)
         
         # Output projection
         self.output_linear_layers = nn.ModuleList([

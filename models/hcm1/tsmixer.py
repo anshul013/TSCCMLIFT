@@ -4,22 +4,22 @@ from models.hcm1.preprocessor import HardClusterAssigner
 from models.Rev_in import RevIN
 from models.hcm1.blocks import TSMixerBlock
 
-class ClusterTSMixer(nn.Module):
-    """TSMixer model adapted for cluster-specific processing"""
-    def __init__(self, num_features, args):
-        super().__init__()
-        self.device = torch.device(f"cuda:{args.cuda}" if torch.cuda.is_available() else "cpu")
-        self.model = TSMixerBlock(
-            in_len=args.seq_len,
-            out_len=args.pred_len,
-            d_ff=args.d_ff,
-            n_layers=args.n_layers,
-            enc_in=num_features,
-            dropout=args.dropout
-        ).to(self.device)
+# class ClusterTSMixer(nn.Module):
+#     """TSMixer model adapted for cluster-specific processing"""
+#     def __init__(self, num_features, args):
+#         super().__init__()
+#         self.device = torch.device(f"cuda:{args.cuda}" if torch.cuda.is_available() else "cpu")
+#         self.model = TSMixerBlock(
+#             in_len=args.seq_len,
+#             out_len=args.pred_len,
+#             d_ff=args.d_ff,
+#             n_layers=args.n_layers,
+#             enc_in=num_features,
+#             dropout=args.dropout
+#         ).to(self.device)
         
-    def forward(self, x):
-        return self.model(x)
+#     def forward(self, x):
+#         return self.model(x)
 
 class TSMixerH(nn.Module):
     """Hard Clustering variant of TSMixer"""
@@ -36,117 +36,63 @@ class TSMixerH(nn.Module):
         self.args = args
         
         # Normalization layer for full input
-        self.rev_in = RevIN(num_features=args.enc_in).to(self.device)
+        self.rev_in = RevIN(num_features=args.enc_in)
         
         # Clustering module
         self.cluster_assigner = HardClusterAssigner(
             n_vars=self.n_vars,
             num_clusters=args.num_clusters,
             method=args.clustering_method,
-            device=self.device,
-            random_state=42
-        ).to(self.device)
+            device=self.device
+        )
         
-        # Initialize cluster models list
-        # self.cluster_models = nn.ModuleList([
-        #     TSMixerBlock(
-        #         in_len=self.in_len,
-        #         out_len=self.out_len,
-        #         d_ff=self.d_ff,
-        #         n_layers=args.n_layers,
-        #         enc_in=args.enc_in,
-        #         dropout=args.dropout
-        #     ).to(self.device) for _ in range(self.num_clusters)
-        # ]).to(self.device)
-        # Initialize cluster models list
-        self.cluster_models = nn.ModuleList().to(self.device)
-        self.cluster_sizes = {}
+        # Initialize cluster models immediately
+        self.cluster_models = nn.ModuleList([
+            TSMixerBlock(
+                in_len=self.in_len,
+                out_len=self.out_len,
+                d_ff=self.d_ff,
+                n_layers=args.n_layers,
+                enc_in=self.enc_in // args.num_clusters + 1,  # Ensure enough capacity
+                dropout=args.dropout
+            ) for _ in range(self.num_clusters)
+        ])
         
-    # def initialize_clusters(self, x):
-    #     """Initialize clusters and models with fixed assignments"""
-    #     x = x.to(self.device)
-    #     # Force cluster update
-    #     cluster_assignments = self.cluster_assigner(x, if_update=True)
+        # Move everything to device
+        self.to(self.device)
         
-    #     # Create new cluster models
-    #     self.cluster_models = nn.ModuleList()
-    #     self.cluster_sizes = {}
-        
-    #     for cluster_idx in range(self.num_clusters):
-    #         cluster_mask = (cluster_assignments == cluster_idx)
-    #         if not cluster_mask.any():
-    #             continue
-    #         cluster_channels = torch.where(cluster_mask)[0]
-    #         num_channels = len(cluster_channels)
-    #         self.cluster_sizes[cluster_idx] = num_channels
-            
-    #         # Create cluster-specific model
-    #         self.cluster_models.append(ClusterTSMixer(num_channels, self.args).to(self.device))
-        
-    #     self.cluster_models = self.cluster_models.to(self.device)
-    #     return cluster_assignments
-
     def initialize_clusters(self, full_data):
         """Initialize clusters using full training data"""
         full_data = full_data.to(self.device)
         # Force cluster update using full data
         cluster_assignments = self.cluster_assigner(full_data, if_update=True)
         
-        # Create new cluster models
-        self.cluster_models = nn.ModuleList()
+        # Store cluster sizes for monitoring
         self.cluster_sizes = {}
-        
         for cluster_idx in range(self.num_clusters):
             cluster_mask = (cluster_assignments == cluster_idx)
-            if not cluster_mask.any():
-                continue
-            cluster_channels = torch.where(cluster_mask)[0]
-            num_channels = len(cluster_channels)
-            self.cluster_sizes[cluster_idx] = num_channels
-            
-            # Create cluster-specific model
-            self.cluster_models.append(ClusterTSMixer(num_channels, self.args).to(self.device))
+            if cluster_mask.any():
+                self.cluster_sizes[cluster_idx] = torch.sum(cluster_mask).item()
         
-        self.cluster_models = self.cluster_models.to(self.device)
+        print(f"Initial cluster assignments: {cluster_assignments.cpu().numpy()}")
+        print(f"Cluster sizes: {self.cluster_sizes}")
+        
         return cluster_assignments
     
-    def load_state_dict_with_init(self, state_dict, x):
-        """Load state dict after initializing clusters with given data"""
-        try:
-            # First initialize clusters
-            self.initialize_clusters(x)
-            # Now try to load the state dict
-            try:
-                self.load_state_dict(state_dict)
-                print("Successfully loaded state dict with matching cluster sizes")
-            except:
-                print("Warning: Could not load previous state dict. Starting with fresh weights.")
-                # Don't raise the exception - we'll continue with fresh weights
-                pass
-        except Exception as e:
-            print(f"Error during cluster initialization: {str(e)}")
-            raise e
-    
-    def forward(self, x, if_update=False):
+    def forward(self, x):
         batch_size = x.shape[0]
         x = x.to(self.device)
-        
-        # Initialize clusters if not done yet
-        # if len(self.cluster_models) == 0:
-        #     self.initialize_clusters(x)
         
         # Apply RevIN normalization
         x = self.rev_in(x, 'norm')
         
-        # Get cluster assignments (without updating if not requested)
-        # cluster_assignments = self.cluster_assigner(x, if_update)
+        # Get cluster assignments
         cluster_assignments = self.cluster_assigner.cluster_assignments
         
-        # Initialize output tensor
+        # Initialize output tensor with correct shape [batch_size, out_len, enc_in]
         outputs = torch.zeros(batch_size, self.out_len, self.enc_in).to(self.device)
         
         # Process each cluster
-        model_idx = 0
         for cluster_idx in range(self.num_clusters):
             cluster_mask = (cluster_assignments == cluster_idx)
             if not cluster_mask.any():
@@ -157,10 +103,7 @@ class TSMixerH(nn.Module):
             cluster_input = x[:, :, cluster_channels]
             
             # Process with corresponding model
-            cluster_output = self.cluster_models[model_idx](cluster_input)
-            # Transpose cluster_output to match target shape
-            cluster_output = cluster_output.transpose(1, 2)
-            model_idx += 1
+            cluster_output = self.cluster_models[cluster_idx](cluster_input)
             
             # Place outputs back in correct positions
             outputs[:, :, cluster_channels] = cluster_output
