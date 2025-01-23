@@ -62,11 +62,35 @@ class TSMixerH(nn.Module):
         self.cluster_models = nn.ModuleList().to(self.device)
         self.cluster_sizes = {}
         
-    def initialize_clusters(self, x):
-        """Initialize clusters and models with fixed assignments"""
-        x = x.to(self.device)
-        # Force cluster update
-        cluster_assignments = self.cluster_assigner(x, if_update=True)
+    # def initialize_clusters(self, x):
+    #     """Initialize clusters and models with fixed assignments"""
+    #     x = x.to(self.device)
+    #     # Force cluster update
+    #     cluster_assignments = self.cluster_assigner(x, if_update=True)
+        
+    #     # Create new cluster models
+    #     self.cluster_models = nn.ModuleList()
+    #     self.cluster_sizes = {}
+        
+    #     for cluster_idx in range(self.num_clusters):
+    #         cluster_mask = (cluster_assignments == cluster_idx)
+    #         if not cluster_mask.any():
+    #             continue
+    #         cluster_channels = torch.where(cluster_mask)[0]
+    #         num_channels = len(cluster_channels)
+    #         self.cluster_sizes[cluster_idx] = num_channels
+            
+    #         # Create cluster-specific model
+    #         self.cluster_models.append(ClusterTSMixer(num_channels, self.args).to(self.device))
+        
+    #     self.cluster_models = self.cluster_models.to(self.device)
+    #     return cluster_assignments
+
+    def initialize_clusters(self, full_data):
+        """Initialize clusters using full training data"""
+        full_data = full_data.to(self.device)
+        # Force cluster update using full data
+        cluster_assignments = self.cluster_assigner(full_data, if_update=True)
         
         # Create new cluster models
         self.cluster_models = nn.ModuleList()
@@ -108,14 +132,15 @@ class TSMixerH(nn.Module):
         x = x.to(self.device)
         
         # Initialize clusters if not done yet
-        if len(self.cluster_models) == 0:
-            self.initialize_clusters(x)
+        # if len(self.cluster_models) == 0:
+        #     self.initialize_clusters(x)
         
         # Apply RevIN normalization
         x = self.rev_in(x, 'norm')
         
         # Get cluster assignments (without updating if not requested)
-        cluster_assignments = self.cluster_assigner(x, if_update)
+        # cluster_assignments = self.cluster_assigner(x, if_update)
+        cluster_assignments = self.cluster_assigner.cluster_assignments
         
         # Initialize output tensor
         outputs = torch.zeros(batch_size, self.out_len, self.enc_in).to(self.device)

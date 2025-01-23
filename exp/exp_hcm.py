@@ -13,9 +13,7 @@ from torch.nn import DataParallel
 import os
 import time
 import json
-import pickle
 from torchinfo import summary
-from torch.cuda.amp import GradScaler
 
 class Exp_HCM(Exp_Basic):
     def __init__(self, args):
@@ -77,8 +75,7 @@ class Exp_HCM(Exp_Basic):
         with torch.no_grad():
             for i, (batch_x, batch_y) in enumerate(vali_loader):
                 pred, true = self._process_one_batch(
-                    vali_data, batch_x, batch_y, if_update=False)
-                # pred shape: [32, 96, 7], true shape: [32, 96, 7]
+                    vali_data, batch_x, batch_y)
                 loss = nn.MSELoss()(pred.detach().cpu(), true.detach().cpu())
                 
                 total_loss.append(loss.item())
@@ -86,14 +83,12 @@ class Exp_HCM(Exp_Basic):
                 batch_size = pred.shape[0]
                 instance_num += batch_size
                 
-                # Convert to numpy and ensure shapes are correct
-                pred_np = pred.detach().cpu().numpy()  # [32, 96, 7]
-                true_np = true.detach().cpu().numpy()  # [32, 96, 7]
+                pred_np = pred.detach().cpu().numpy()
+                true_np = true.detach().cpu().numpy()
                 
-                # Calculate metrics for each sample in batch
                 batch_metrics = []
                 for j in range(batch_size):
-                    sample_metrics = metric(pred_np[j], true_np[j])  # Calculate for each sample
+                    sample_metrics = metric(pred_np[j], true_np[j])
                     batch_metrics.append(sample_metrics)
                 
                 # Convert to numpy array and sum
@@ -109,51 +104,68 @@ class Exp_HCM(Exp_Basic):
         return mse, total_loss, mae
                     
     def train(self, setting):
+        # train_data, train_loader = self._get_data(flag='train')
+        # vali_data, vali_loader = self._get_data(flag='val')
+        # test_data, test_loader = self._get_data(flag='test')
+
+        # path = os.path.join(self.args.checkpoints, setting)
+        # if not os.path.exists(path):
+        #     os.makedirs(path)
+
+        # with open(os.path.join(path, "args.json"), 'w') as f:
+        #     json.dump(vars(self.args), f, indent=True)
+
+        # train_steps = len(train_loader)
+        # early_stopping = EarlyStopping(patience=self.args.patience, verbose=True)
+        
+        # model_optim = self._select_optimizer()
         train_data, train_loader = self._get_data(flag='train')
         vali_data, vali_loader = self._get_data(flag='val')
         test_data, test_loader = self._get_data(flag='test')
-
+    
         path = os.path.join(self.args.checkpoints, setting)
         if not os.path.exists(path):
             os.makedirs(path)
-
-        with open(os.path.join(path, "args.json"), 'w') as f:
-            json.dump(vars(self.args), f, indent=True)
-
+    
+        time_now = time.time()
+    
         train_steps = len(train_loader)
         early_stopping = EarlyStopping(patience=self.args.patience, verbose=True)
-        
+    
         model_optim = self._select_optimizer()
         criterion = nn.MSELoss()
+
+        # Get full training data for clustering
+        print("Collecting full training data for clustering initialization...")
+        full_data = []
+        with torch.no_grad():
+            for i, (batch_x, batch_y) in enumerate(train_loader):
+                full_data.append(batch_x)
+        full_data = torch.cat(full_data, dim=0).to(self.device)
+        # for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(train_loader):
+        #     full_data.append(batch_x)
+        # full_data = torch.cat(full_data, dim=0)  # [total_samples, seq_len, channels]
+    
+        # Initialize clusters with full data once
+        print("Initializing clusters with full training data...")
+        self.model.initialize_clusters(full_data)
         
-        # Training loop
+        # Print initial cluster assignments
+        print("Initial cluster assignments:", self.model.get_current_assignments())
+        metrics = self.model.get_clustering_metrics()
+        print("Initial clustering metrics:", metrics)
+        
         for epoch in range(self.args.train_epochs):
-            iter_count = 0
+            epoch_time = time.time()
             train_loss = []
             
             self.model.train()
-            epoch_time = time.time()
-            time_now = time.time()
-            
             for i, (batch_x, batch_y) in enumerate(train_loader):
-                iter_count += 1
                 model_optim.zero_grad()
                 
-                # Update clusters periodically
-                if_update = (epoch % self.args.cluster_update_interval == 0)
-                
-                pred, true = self._process_one_batch(
-                    train_data, batch_x, batch_y, if_update=if_update)
+                pred, true = self._process_one_batch(train_data, batch_x, batch_y)
                 loss = criterion(pred, true)
                 train_loss.append(loss.item())
-                
-                if (i+1) % 100 == 0:
-                    print("\titers: {0}, epoch: {1} | loss: {2:.7f}".format(i + 1, epoch + 1, loss.item()))
-                    speed = (time.time()-time_now)/iter_count
-                    left_time = speed*((self.args.train_epochs - epoch)*train_steps - i)
-                    print('\tspeed: {:.4f}s/iter; left time: {:.4f}s'.format(speed, left_time))
-                    iter_count = 0
-                    time_now = time.time()
                 
                 loss.backward()
                 model_optim.step()
@@ -168,15 +180,8 @@ class Exp_HCM(Exp_Basic):
                 epoch + 1, train_steps, train_loss, vali_loss, test_loss))
             print("Vali MSE: {:.7f}, MAE: {:.7f}, Test MSE: {:.7f}, MAE: {:.7f}".format(
                 vali_mse, vali_mae, test_mse, test_mae))
-            
-            if epoch % self.args.cluster_update_interval == 0:
-                print("Current cluster assignments:", self.model.get_current_assignments())
-                metrics = self.model.get_clustering_metrics()
-                if metrics['inertia'] is not None:
-                    print("Clustering inertia:", metrics['inertia'])
-                if metrics['silhouette'] is not None:
-                    print("Silhouette score:", metrics['silhouette'])
 
+            # Save model and early stopping
             early_stopping(vali_loss, self.model, path)
             if early_stopping.early_stop:
                 print("Early stopping")
@@ -184,14 +189,15 @@ class Exp_HCM(Exp_Basic):
 
             adjust_learning_rate(model_optim, epoch+1, self.args)
             
-        # Load best model using our custom method with initialization
+        # Load best model using standard method
         best_model_path = path + '/' + 'checkpoint.pth'
         # self.model.load_state_dict(torch.load(best_model_path))
 
         # Get first batch for initialization
-        first_batch = next(iter(train_loader))[0]
+        # first_batch = next(iter(train_loader))[0]
         state_dict = torch.load(best_model_path)
-        self.model.load_state_dict_with_init(state_dict, first_batch)
+        self.model.load_state_dict(state_dict)
+        # self.model.load_state_dict_with_init(state_dict, first_batch)
         
         # Handle DataParallel and save state
         state_dict = self.model.module.state_dict() if isinstance(self.model, DataParallel) else self.model.state_dict()
@@ -212,7 +218,7 @@ class Exp_HCM(Exp_Basic):
         with torch.no_grad():
             for i, (batch_x, batch_y) in enumerate(test_loader):
                 pred, true = self._process_one_batch(
-                    test_data, batch_x, batch_y, inverse, if_update=False)
+                    test_data, batch_x, batch_y, inverse)
                 batch_size = pred.shape[0]
                 instance_num += batch_size
                 batch_metric = np.array(metric(pred.detach().cpu().numpy(), true.detach().cpu().numpy())) * batch_size
@@ -240,11 +246,11 @@ class Exp_HCM(Exp_Basic):
             np.save(folder_path+'true.npy', trues)
         return
 
-    def _process_one_batch(self, dataset_object, batch_x, batch_y, inverse=False, if_update=False):
+    def _process_one_batch(self, dataset_object, batch_x, batch_y, inverse=False):
         batch_x = batch_x.float().to(self.device)
         batch_y = batch_y.float().to(self.device)
         
-        outputs = self.model(batch_x, if_update=if_update)
+        outputs = self.model(batch_x)
 
         if inverse:
             outputs = dataset_object.inverse_transform(outputs)
@@ -280,7 +286,7 @@ class Exp_HCM(Exp_Basic):
         with torch.no_grad():
             for i, (batch_x, batch_y) in enumerate(data_loader):
                 pred, true = self._process_one_batch(
-                    data_set, batch_x, batch_y, inverse, if_update=False)
+                    data_set, batch_x, batch_y, inverse)
                 batch_size = pred.shape[0]
                 instance_num += batch_size
                 batch_metric = np.array(metric(pred.detach().cpu().numpy(), true.detach().cpu().numpy())) * batch_size
