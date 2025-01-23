@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from models.hcm1.preprocessor import HardClusterAssigner
 from models.Rev_in import RevIN
-from models.hcm1.blocks import TSMixerBlock, T_MixerBlock
+from models.hcm1.blocks import TSMixerBlock, TMixerBlock
 
 # class ClusterTSMixer(nn.Module):
 #     """TSMixer model adapted for cluster-specific processing"""
@@ -183,7 +183,7 @@ class TMixerH(nn.Module):
                 
                 # Create cluster-specific model with correct number of channels
                 self.cluster_models.append(
-                    T_MixerBlock(
+                    TMixerBlock(
                         in_len=self.in_len,
                         out_len=self.out_len,
                         n_layers=self.args.n_layers,
