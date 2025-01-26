@@ -160,7 +160,7 @@ data_parser = {
     'ETTm1':{'data':'ETTm1.csv', 'data_dim':7, 'split':[4*12*30*24, 4*4*30*24, 4*4*30*24]},
     'ETTh2':{'data':'ETTh2.csv', 'data_dim':7, 'split':[12*30*24, 4*30*24, 4*30*24]},
     'ETTm2':{'data':'ETTm2.csv', 'data_dim':7, 'split':[4*12*30*24, 4*4*30*24, 4*4*30*24]},
-    'WTH':{'data':'WTH.csv', 'data_dim':12, 'split':[0.7, 0.1, 0.2]},
+    'WTH':{'data':'weather.csv', 'data_dim':12, 'split':[0.7, 0.1, 0.2]},
     'ECL':{'data':'ECL.csv', 'data_dim':321, 'split':[0.7, 0.1, 0.2]},
     'ILI':{'data':'ILI.csv', 'data_dim':7, 'split':[0.7, 0.1, 0.2]},
     'TRF':{'data':'TRF.csv', 'data_dim':862, 'split':[0.7, 0.1, 0.2]},
