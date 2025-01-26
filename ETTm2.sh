@@ -30,7 +30,7 @@ python3 -u run_longExp.py \
   --data_path $dataset.csv \
   --model_id $dataset'_'$seq_len'_'$pred_len \
   --model $model_name \
-  --data ETTh1 \
+  --data $dataset \
   --features M \
   --seq_len $seq_len \
   --pred_len $pred_len \
@@ -55,7 +55,7 @@ python3 -u run_longExp.py \
   --data_path $dataset.csv \
   --model_id $dataset'_'$seq_len'_'$pred_len \
   --model $model_name \
-  --data ETTh1 \
+  --data $dataset \
   --features M \
   --seq_len $seq_len \
   --pred_len $pred_len \
@@ -80,7 +80,7 @@ python3 -u run_longExp.py \
   --data_path $dataset.csv \
   --model_id $dataset'_'$seq_len'_'$pred_len \
   --model $model_name \
-  --data ETTh1 \
+  --data $dataset \
   --features M \
   --seq_len $seq_len \
   --pred_len $pred_len \
@@ -105,7 +105,7 @@ python3 -u run_longExp.py \
   --data_path $dataset.csv \
   --model_id $dataset'_'$seq_len'_'$pred_len \
   --model $model_name \
-  --data ETTh1 \
+  --data $dataset \
   --features M \
   --seq_len $seq_len \
   --pred_len $pred_len \
