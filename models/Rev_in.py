@@ -46,6 +46,7 @@ class RevIN(nn.Module):
         else:
             x = x - self.mean
         x = x / self.stdev
+        print(x.shape)
         if self.affine:
             x = x * self.affine_weight
             x = x + self.affine_bias
