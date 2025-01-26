@@ -155,34 +155,34 @@ parser.add_argument('--cuda', type=int, default=0, help='cuda device number')
 args = parser.parse_args()
 
 # Data parser dictionary
-data_parser = {
-    'ETTh1':{'data':'ETTh1.csv', 'data_dim':7, 'split':[12*30*24, 4*30*24, 4*30*24]},
-    'ETTm1':{'data':'ETTm1.csv', 'data_dim':7, 'split':[4*12*30*24, 4*4*30*24, 4*4*30*24]},
-    'ETTh2':{'data':'ETTh2.csv', 'data_dim':7, 'split':[12*30*24, 4*30*24, 4*30*24]},
-    'ETTm2':{'data':'ETTm2.csv', 'data_dim':7, 'split':[4*12*30*24, 4*4*30*24, 4*4*30*24]},
-    'WTH':{'data':'weather.csv', 'data_dim':12, 'split':[0.7, 0.1, 0.2]},
-    'ECL':{'data':'ECL.csv', 'data_dim':321, 'split':[0.7, 0.1, 0.2]},
-    'ILI':{'data':'ILI.csv', 'data_dim':7, 'split':[0.7, 0.1, 0.2]},
-    'TRF':{'data':'TRF.csv', 'data_dim':862, 'split':[0.7, 0.1, 0.2]},
-    'EXR':{'data':'EXR.csv', 'data_dim':8, 'split':[0.7, 0.1, 0.2]},
-}
+# data_parser = {
+#     'ETTh1':{'data':'ETTh1.csv', 'data_dim':7, 'split':[12*30*24, 4*30*24, 4*30*24]},
+#     'ETTm1':{'data':'ETTm1.csv', 'data_dim':7, 'split':[4*12*30*24, 4*4*30*24, 4*4*30*24]},
+#     'ETTh2':{'data':'ETTh2.csv', 'data_dim':7, 'split':[12*30*24, 4*30*24, 4*30*24]},
+#     'ETTm2':{'data':'ETTm2.csv', 'data_dim':7, 'split':[4*12*30*24, 4*4*30*24, 4*4*30*24]},
+#     'WTH':{'data':'weather.csv', 'data_dim':21, 'split':[0.7, 0.1, 0.2]},
+#     'ECL':{'data':'ECL.csv', 'data_dim':321, 'split':[0.7, 0.1, 0.2]},
+#     'ILI':{'data':'ILI.csv', 'data_dim':7, 'split':[0.7, 0.1, 0.2]},
+#     'TRF':{'data':'TRF.csv', 'data_dim':862, 'split':[0.7, 0.1, 0.2]},
+#     'EXR':{'data':'EXR.csv', 'data_dim':8, 'split':[0.7, 0.1, 0.2]},
+# }
 
 # Process data information
-if args.zero_shot_test is False:
-    args.test_data = args.data
+# if args.zero_shot_test is False:
+#     args.test_data = args.data
 
-if args.data in data_parser.keys():
-    data_info = data_parser[args.data]
-    args.data_path = data_info['data']
-    args.data_dim = data_info['data_dim']
-    args.data_split = data_info['split']
+# if args.data in data_parser.keys():
+#     data_info = data_parser[args.data]
+#     args.data_path = data_info['data']
+#     args.data_dim = data_info['data_dim']
+#     args.data_split = data_info['split']
 
-args.freq = "t" if args.data in ["ETTm1", "ETTm2"] else "h"
-if args.test_data in data_parser.keys():
-    args.test_data_path = data_parser[args.test_data]['data']
-    args.test_data_split = data_parser[args.test_data]['split']
+# args.freq = "t" if args.data in ["ETTm1", "ETTm2"] else "h"
+# if args.test_data in data_parser.keys():
+#     args.test_data_path = data_parser[args.test_data]['data']
+#     args.test_data_split = data_parser[args.test_data]['split']
 
-args.n_cluster = math.ceil(args.data_dim * args.cluster_ratio)
+# args.n_cluster = math.ceil(args.data_dim * args.cluster_ratio)
 
 args.use_gpu = True if torch.cuda.is_available() and args.use_gpu else False
 
