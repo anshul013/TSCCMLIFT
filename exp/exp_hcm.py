@@ -68,25 +68,17 @@ class Exp_HCM(Exp_Basic):
                 total_loss.append(loss.item())
                 
                 # Calculate metrics
-                batch_size = outputs.shape[0]
-                instance_num += batch_size
-                
                 pred_np = outputs.detach().cpu().numpy()
                 true_np = batch_y.detach().cpu().numpy()
                 
-                batch_metrics = []
-                for j in range(batch_size):
-                    sample_metrics = metric(pred_np[j], true_np[j])
-                    batch_metrics.append(sample_metrics)
-                
-                # Convert to numpy array and sum
-                batch_metrics = np.array(batch_metrics).sum(axis=0)
-                metrics_all.append(batch_metrics)
+                mae, mse, rmse, mape, mspe, rse, corr = metric(pred_np, true_np)
+                metrics_all.append([mae, mse, rmse, mape, mspe, rse, corr])
 
             total_loss = np.average(total_loss)
-            metrics_all = np.stack(metrics_all, axis=0)
-            metrics_mean = metrics_all.sum(axis=0) / instance_num
-            mae, mse, rmse, mape, mspe = metrics_mean
+            metrics_all = np.array(metrics_all)
+            metrics_mean = np.mean(metrics_all, axis=0)
+            
+            mae, mse, rmse, mape, mspe, rse, corr = metrics_mean
             
         self.model.train()
         return mse, total_loss, mae
