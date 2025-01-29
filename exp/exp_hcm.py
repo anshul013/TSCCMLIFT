@@ -112,12 +112,20 @@ class Exp_HCM(Exp_Basic):
         if self.args.use_amp:
             scaler = torch.cuda.amp.GradScaler()
 
-        # Get initial data for clustering
+        # Get initial data for clustering and model summary
+        first_batch = None
         full_data = []
         with torch.no_grad():
             for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(train_loader):
+                # Explicitly convert to float32
+                batch_x = batch_x.float()
+                if first_batch is None:
+                    first_batch = batch_x.clone()
                 full_data.append(batch_x)
-        full_data = torch.cat(full_data, dim=0).to(self.device)
+        
+        # Move data to device after collecting
+        full_data = torch.cat(full_data, dim=0).float().to(self.device)
+        first_batch = first_batch.to(self.device)
 
         # Initialize clusters
         print("Initializing clusters with full training data...")
@@ -125,7 +133,11 @@ class Exp_HCM(Exp_Basic):
         
         # Print model summary with actual data
         print("\nModel Architecture:")
-        summary(self.model, input_data=full_data, device=self.device)
+        try:
+            summary(self.model, input_data=first_batch, device=self.device)
+        except RuntimeError as e:
+            print(f"Warning: Could not generate model summary due to: {str(e)}")
+            print("Continuing with training...")
 
         # Save model architecture and initial settings
         with open(os.path.join(path, "args.json"), 'w') as f:
