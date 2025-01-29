@@ -1,17 +1,19 @@
 from data_provider.data_factory import data_provider
 from exp.exp_basic import Exp_Basic
 from models.hcm1.tsmixer import TSMixerH, TMixerH
-from utils.tools import EarlyStopping, adjust_learning_rate
+from utils.tools import EarlyStopping, adjust_learning_rate, visual
 from utils.metrics import metric
-
+import json
 import numpy as np
 import torch
 import torch.nn as nn
 from torch import optim
 import os
 import time
-import json
-from torchinfo import summary
+import warnings
+import matplotlib.pyplot as plt
+
+warnings.filterwarnings('ignore')
 
 class Exp_HCM(Exp_Basic):
     def __init__(self, args):
@@ -45,44 +47,32 @@ class Exp_HCM(Exp_Basic):
         criterion = nn.MSELoss()
         return criterion
 
-    def vali(self, vali_data, vali_loader):
-        self.model.eval()
+    def vali(self, vali_data, vali_loader, criterion):
         total_loss = []
-        metrics_all = []
-        instance_num = 0
-        
+        self.model.eval()
         with torch.no_grad():
             for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(vali_loader):
                 batch_x = batch_x.float().to(self.device)
                 batch_y = batch_y.float().to(self.device)
-                
-                # Forward pass
+                batch_x_mark = batch_x_mark.float().to(self.device)
+                batch_y_mark = batch_y_mark.float().to(self.device)
+
                 outputs = self.model(batch_x)
-                
+
                 f_dim = -1 if self.args.features == 'MS' else 0
                 outputs = outputs[:, -self.args.pred_len:, f_dim:]
                 batch_y = batch_y[:, -self.args.pred_len:, f_dim:]
-                
-                loss = nn.MSELoss()(outputs, batch_y)
-                
-                total_loss.append(loss.item())
-                
-                # Calculate metrics
-                pred_np = outputs.detach().cpu().numpy()
-                true_np = batch_y.detach().cpu().numpy()
-                
-                mae, mse, rmse, mape, mspe, rse, corr = metric(pred_np, true_np)
-                metrics_all.append([mae, mse, rmse, mape, mspe, rse, corr])
 
-            total_loss = np.average(total_loss)
-            metrics_all = np.array(metrics_all)
-            metrics_mean = np.mean(metrics_all, axis=0)
-            
-            mae, mse, rmse, mape, mspe, rse, corr = metrics_mean
-            
+                pred = outputs.detach().cpu()
+                true = batch_y.detach().cpu()
+
+                loss = criterion(pred, true)
+                total_loss.append(loss)
+
+        total_loss = np.average(total_loss)
         self.model.train()
-        return mse, total_loss, mae
-                    
+        return total_loss
+
     def train(self, setting):
         train_data, train_loader = self._get_data(flag='train')
         if not self.args.train_only:
@@ -153,6 +143,8 @@ class Exp_HCM(Exp_Basic):
                 
                 batch_x = batch_x.float().to(self.device)
                 batch_y = batch_y.float().to(self.device)
+                batch_x_mark = batch_x_mark.float().to(self.device)
+                batch_y_mark = batch_y_mark.float().to(self.device)
 
                 # Forward pass
                 if self.args.use_amp:
@@ -183,13 +175,11 @@ class Exp_HCM(Exp_Basic):
             
             train_loss = np.average(train_loss)
             if not self.args.train_only:
-                vali_mse, vali_loss, vali_mae = self.vali(vali_data, vali_loader)
-                test_mse, test_loss, test_mae = self.vali(test_data, test_loader)
+                vali_loss = self.vali(vali_data, vali_loader, criterion)
+                test_loss = self.vali(test_data, test_loader, criterion)
 
                 print("Epoch: {0}, Steps: {1} | Train Loss: {2:.7f} Vali Loss: {3:.7f} Test Loss: {4:.7f}".format(
                     epoch + 1, train_steps, train_loss, vali_loss, test_loss))
-                print("Vali MSE: {:.7f}, MAE: {:.7f}, Test MSE: {:.7f}, MAE: {:.7f}".format(
-                    vali_mse, vali_mae, test_mse, test_mae))
 
                 # Save model and early stopping
                 early_stopping(vali_loss, self.model, path)
@@ -223,9 +213,11 @@ class Exp_HCM(Exp_Basic):
             for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(test_loader):
                 batch_x = batch_x.float().to(self.device)
                 batch_y = batch_y.float().to(self.device)
-                
+                batch_x_mark = batch_x_mark.float().to(self.device)
+                batch_y_mark = batch_y_mark.float().to(self.device)
+
                 outputs = self.model(batch_x)
-                
+
                 f_dim = -1 if self.args.features == 'MS' else 0
                 outputs = outputs[:, -self.args.pred_len:, f_dim:]
                 batch_y = batch_y[:, -self.args.pred_len:, f_dim:]
@@ -244,10 +236,10 @@ class Exp_HCM(Exp_Basic):
         if not os.path.exists(folder_path):
             os.makedirs(folder_path)
 
-        mae, mse, rmse, mape, mspe = metric(preds, trues)
+        mae, mse, rmse, mape, mspe, rse, corr = metric(preds, trues)
         print('mse:{}, mae:{}'.format(mse, mae))
 
-        np.save(folder_path+'metrics.npy', np.array([mae, mse, rmse, mape, mspe]))
+        np.save(folder_path+'metrics.npy', np.array([mae, mse, rmse, mape, mspe, rse, corr]))
         np.save(folder_path+'pred.npy', preds)
         np.save(folder_path+'true.npy', trues)
         
@@ -267,6 +259,10 @@ class Exp_HCM(Exp_Basic):
         with torch.no_grad():
             for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(pred_loader):
                 batch_x = batch_x.float().to(self.device)
+                batch_y = batch_y.float()
+                batch_x_mark = batch_x_mark.float().to(self.device)
+                batch_y_mark = batch_y_mark.float().to(self.device)
+
                 outputs = self.model(batch_x)
                 pred = outputs.detach().cpu().numpy()
                 preds.append(pred)
