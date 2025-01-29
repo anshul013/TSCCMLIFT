@@ -19,7 +19,7 @@ pred_len=96
 python3 -u run_longExp.py \
   --activation 'relu' \
   --dropout 0.3 \
-  --num_clusters 3 \
+  --num_clusters 4 \
   --clustering_method 'kmeans' \
   --n_layers 4 \
   --d_ff 64 \
@@ -45,7 +45,7 @@ pred_len=192
 python3 -u run_longExp.py \
   --activation 'relu' \
   --dropout 0.7 \
-  --num_clusters 3 \
+  --num_clusters 4 \
   --clustering_method 'kmeans' \
   --n_layers 8 \
   --d_ff 32 \
@@ -71,7 +71,7 @@ pred_len=336
 python3 -u run_longExp.py \
   --activation 'relu' \
   --dropout 0.7 \
-  --num_clusters 3 \
+  --num_clusters 4 \
   --clustering_method 'kmeans' \
   --n_layers 2 \
   --d_ff 8 \
@@ -97,7 +97,7 @@ pred_len=720
 python3 -u run_longExp.py \
   --activation 'relu' \
   --dropout 0.7 \
-  --num_clusters 3 \
+  --num_clusters 4 \
   --clustering_method 'kmeans' \
   --n_layers 8 \
   --d_ff 16 \
