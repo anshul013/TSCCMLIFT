@@ -12,6 +12,7 @@ import os
 import time
 import warnings
 import matplotlib.pyplot as plt
+from torchinfo import summary
 
 warnings.filterwarnings('ignore')
 
