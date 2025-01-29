@@ -48,31 +48,40 @@ class Exp_HCM(Exp_Basic):
         criterion = nn.MSELoss()
         return criterion
 
-    def vali(self, vali_data, vali_loader, criterion):
-        total_loss = []
+    def vali(self, vali_data, vali_loader):
         self.model.eval()
+        total_loss = []
+        metrics_all = []
+        instance_num = 0
+        
         with torch.no_grad():
             for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(vali_loader):
                 batch_x = batch_x.float().to(self.device)
                 batch_y = batch_y.float().to(self.device)
-                batch_x_mark = batch_x_mark.float().to(self.device)
-                batch_y_mark = batch_y_mark.float().to(self.device)
-
+                
+                # Forward pass
                 outputs = self.model(batch_x)
-
+                
                 f_dim = -1 if self.args.features == 'MS' else 0
                 outputs = outputs[:, -self.args.pred_len:, f_dim:]
                 batch_y = batch_y[:, -self.args.pred_len:, f_dim:]
-
-                pred = outputs.detach().cpu()
-                true = batch_y.detach().cpu()
-
-                loss = criterion(pred, true)
-                total_loss.append(loss)
+                
+                loss = nn.MSELoss()(outputs.detach().cpu(), batch_y.detach().cpu())
+                total_loss.append(loss.item())
+                
+                # Calculate metrics per batch
+                batch_size = outputs.shape[0]
+                instance_num += batch_size
+                batch_metric = np.array(metric(outputs.detach().cpu().numpy(), batch_y.detach().cpu().numpy())) * batch_size
+                metrics_all.append(batch_metric)
 
         total_loss = np.average(total_loss)
+        metrics_all = np.stack(metrics_all, axis=0)
+        metrics_mean = metrics_all.sum(axis=0) / instance_num
+        
+        mae, mse, rmse, mape, mspe = metrics_mean
         self.model.train()
-        return total_loss
+        return mse, total_loss, mae
 
     def train(self, setting):
         train_data, train_loader = self._get_data(flag='train')
@@ -176,14 +185,14 @@ class Exp_HCM(Exp_Basic):
             
             train_loss = np.average(train_loss)
             if not self.args.train_only:
-                vali_loss = self.vali(vali_data, vali_loader, criterion)
-                test_loss = self.vali(test_data, test_loader, criterion)
+                vali_loss = self.vali(vali_data, vali_loader)
+                test_loss = self.vali(test_data, test_loader)
 
                 print("Epoch: {0}, Steps: {1} | Train Loss: {2:.7f} Vali Loss: {3:.7f} Test Loss: {4:.7f}".format(
-                    epoch + 1, train_steps, train_loss, vali_loss, test_loss))
+                    epoch + 1, train_steps, train_loss, vali_loss[1], test_loss[1]))
 
                 # Save model and early stopping
-                early_stopping(vali_loss, self.model, path)
+                early_stopping(vali_loss[1], self.model, path)
                 if early_stopping.early_stop:
                     print("Early stopping")
                     break
@@ -199,61 +208,53 @@ class Exp_HCM(Exp_Basic):
         
         return self.model
 
-    def test(self, setting, test=0):
+    def test(self, setting, save_pred=True):
         test_data, test_loader = self._get_data(flag='test')
         
-        if test:
-            print('loading model')
-            self.model.load_state_dict(torch.load(os.path.join('./checkpoints/' + setting, 'checkpoint.pth')))
-
+        self.model.eval()
+        
         preds = []
         trues = []
+        metrics_all = []
+        instance_num = 0
         
-        self.model.eval()
         with torch.no_grad():
             for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(test_loader):
                 batch_x = batch_x.float().to(self.device)
                 batch_y = batch_y.float().to(self.device)
-                batch_x_mark = batch_x_mark.float().to(self.device)
-                batch_y_mark = batch_y_mark.float().to(self.device)
 
                 outputs = self.model(batch_x)
-
+                
                 f_dim = -1 if self.args.features == 'MS' else 0
                 outputs = outputs[:, -self.args.pred_len:, f_dim:]
                 batch_y = batch_y[:, -self.args.pred_len:, f_dim:]
-                
-                pred = outputs.detach().cpu().numpy()
-                true = batch_y.detach().cpu().numpy()
-                
-                preds.append(pred)
-                trues.append(true)
 
-        preds = np.concatenate(preds, axis=0)
-        trues = np.concatenate(trues, axis=0)
-        
+                batch_size = outputs.shape[0]
+                instance_num += batch_size
+                batch_metric = np.array(metric(outputs.detach().cpu().numpy(), batch_y.detach().cpu().numpy())) * batch_size
+                metrics_all.append(batch_metric)
+                
+                if save_pred:
+                    preds.append(outputs.detach().cpu().numpy())
+                    trues.append(batch_y.detach().cpu().numpy())
+
+        metrics_all = np.stack(metrics_all, axis=0)
+        metrics_mean = metrics_all.sum(axis=0) / instance_num
+
         # result save
         folder_path = './results/' + setting + '/'
         if not os.path.exists(folder_path):
             os.makedirs(folder_path)
 
-        mae, mse, rmse, mape, mspe, rse, corr = metric(preds, trues)
+        mae, mse, rmse, mape, mspe = metrics_mean
         print('mse:{}, mae:{}'.format(mse, mae))
-        
-        # Write the results to a file
-        f = open("result.txt", 'a')
-        f.write(setting + "  \n")
-        f.write('mse:{}, mae:{}, rse:{}, corr:{}'.format(mse, mae, rse, corr))
-        f.write('\n')
-        f.write('\n')
-        f.close()
 
-        # Save metrics as individual values
-        metrics = np.array([mae, mse, rmse, mape, mspe, rse, corr])
-        np.save(folder_path+'metrics.npy', metrics)
-        np.save(folder_path+'pred.npy', preds)
-        np.save(folder_path+'true.npy', trues)
-
+        np.save(folder_path+'metrics.npy', np.array([mae, mse, rmse, mape, mspe]))
+        if save_pred:
+            preds = np.concatenate(preds, axis=0)
+            trues = np.concatenate(trues, axis=0)
+            np.save(folder_path+'pred.npy', preds)
+            np.save(folder_path+'true.npy', trues)
         return
 
     def predict(self, setting, load=False):
