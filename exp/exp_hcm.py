@@ -1,18 +1,21 @@
 from data_provider.data_factory import data_provider
 from exp.exp_basic import Exp_Basic
 from models.hcm1.tsmixer import TSMixerH, TMixerH
-from utils.tools import EarlyStopping, adjust_learning_rate, visual
-from utils.metrics import metric
-import json
+from utils.tools import EarlyStopping, adjust_learning_rate
+from utils.ccm.metrics import metric
+
 import numpy as np
 import torch
 import torch.nn as nn
 from torch import optim
+from torch.utils.data import DataLoader
+from torch.nn import DataParallel
 import os
 import time
+import json
+from torchinfo import summary
 import warnings
 import matplotlib.pyplot as plt
-from torchinfo import summary
 
 warnings.filterwarnings('ignore')
 
@@ -29,11 +32,6 @@ class Exp_HCM(Exp_Basic):
             'TMixerH': TMixerH
         }
         model = model_dict[self.args.model](self.args).float()
-        
-        # Print model summary
-        # print("\nModel Architecture:")
-        # summary(model)
-        
         return model
 
     def _get_data(self, flag):
@@ -58,6 +56,8 @@ class Exp_HCM(Exp_Basic):
             for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(vali_loader):
                 batch_x = batch_x.float().to(self.device)
                 batch_y = batch_y.float().to(self.device)
+                batch_x_mark = batch_x_mark.float().to(self.device)
+                batch_y_mark = batch_y_mark.float().to(self.device)
                 
                 # Forward pass
                 outputs = self.model(batch_x)
@@ -104,49 +104,12 @@ class Exp_HCM(Exp_Basic):
         if self.args.use_amp:
             scaler = torch.cuda.amp.GradScaler()
 
-        # Get initial data for clustering and model summary
-        first_batch = None
-        full_data = []
-        with torch.no_grad():
-            for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(train_loader):
-                # Explicitly convert to float32
-                batch_x = batch_x.float()
-                if first_batch is None:
-                    first_batch = batch_x.clone()
-                full_data.append(batch_x)
-        
-        # Move data to device after collecting
-        full_data = torch.cat(full_data, dim=0).float().to(self.device)
-        first_batch = first_batch.to(self.device)
-
-        # Initialize clusters
-        print("Initializing clusters with full training data...")
-        self.model.initialize_clusters(full_data)
-        
-        # Print model summary with actual data
-        print("\nModel Architecture:")
-        try:
-            summary(self.model, input_data=first_batch, device=self.device)
-        except RuntimeError as e:
-            print(f"Warning: Could not generate model summary due to: {str(e)}")
-            print("Continuing with training...")
-
-        # Save model architecture and initial settings
-        with open(os.path.join(path, "args.json"), 'w') as f:
-            json.dump(vars(self.args), f, indent=True)
-        
-        # Print initial cluster assignments
-        print("Initial cluster assignments:", self.model.get_current_assignments())
-        metrics = self.model.get_clustering_metrics()
-        print("Initial clustering metrics:", metrics)
-        
         for epoch in range(self.args.train_epochs):
             iter_count = 0
             train_loss = []
             
             self.model.train()
             epoch_time = time.time()
-            
             for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(train_loader):
                 iter_count += 1
                 model_optim.zero_grad()
@@ -156,7 +119,7 @@ class Exp_HCM(Exp_Basic):
                 batch_x_mark = batch_x_mark.float().to(self.device)
                 batch_y_mark = batch_y_mark.float().to(self.device)
 
-                # Forward pass
+                # Compute loss with amp or without
                 if self.args.use_amp:
                     with torch.cuda.amp.autocast():
                         outputs = self.model(batch_x)
@@ -172,7 +135,7 @@ class Exp_HCM(Exp_Basic):
                     loss = criterion(outputs, batch_y)
 
                 train_loss.append(loss.item())
-                
+
                 if self.args.use_amp:
                     scaler.scale(loss).backward()
                     scaler.step(model_optim)
@@ -185,25 +148,24 @@ class Exp_HCM(Exp_Basic):
             
             train_loss = np.average(train_loss)
             if not self.args.train_only:
-                vali_loss = self.vali(vali_data, vali_loader)
-                test_loss = self.vali(test_data, test_loader)
+                vali_loss = self.vali(vali_data, vali_loader, criterion)
+                test_loss = self.vali(test_data, test_loader, criterion)
 
                 print("Epoch: {0}, Steps: {1} | Train Loss: {2:.7f} Vali Loss: {3:.7f} Test Loss: {4:.7f}".format(
-                    epoch + 1, train_steps, train_loss, vali_loss[1], test_loss[1]))
+                    epoch + 1, train_steps, train_loss, vali_loss, test_loss))
 
-                # Save model and early stopping
-                early_stopping(vali_loss[1], self.model, path)
-                if early_stopping.early_stop:
-                    print("Early stopping")
-                    break
+                early_stopping(vali_loss, self.model, path)
             else:
                 print("Epoch: {0}, Steps: {1} | Train Loss: {2:.7f}".format(
                     epoch + 1, train_steps, train_loss))
 
+            if early_stopping.early_stop:
+                print("Early stopping")
+                break
+
             adjust_learning_rate(model_optim, epoch+1, self.args)
-        
-        # Load best model
-        best_model_path = path + '/' + 'checkpoint.pth'
+            
+        best_model_path = path+'/'+'checkpoint.pth'
         self.model.load_state_dict(torch.load(best_model_path))
         
         return self.model
@@ -222,6 +184,8 @@ class Exp_HCM(Exp_Basic):
             for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(test_loader):
                 batch_x = batch_x.float().to(self.device)
                 batch_y = batch_y.float().to(self.device)
+                batch_x_mark = batch_x_mark.float().to(self.device)
+                batch_y_mark = batch_y_mark.float().to(self.device)
 
                 outputs = self.model(batch_x)
                 
