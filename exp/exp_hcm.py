@@ -233,11 +233,19 @@ class Exp_HCM(Exp_Basic):
         batch_x = batch_x.float().to(self.device)
         batch_y = batch_y.float().to(self.device)
         
+        # Get the actual prediction length (removing label_len)
+        pred_len = self.args.pred_len
+        
+        # Forward pass through model
         outputs = self.model(batch_x)
-
+        
+        # Take only the prediction part of batch_y (removing label_len portion)
+        batch_y = batch_y[:, -pred_len:, :]  # Take last pred_len timesteps
+        
         if inverse:
             outputs = dataset_object.inverse_transform(outputs)
             batch_y = dataset_object.inverse_transform(batch_y)
+        
         return outputs, batch_y
 
     def eval(self, setting, save_pred=True, inverse=False):
