@@ -232,18 +232,28 @@ class Exp_HCM(Exp_Basic):
         preds = np.concatenate(preds, axis=0)
         trues = np.concatenate(trues, axis=0)
         
-        # Save results
-        folder_path = './results/' + setting +'/'
+        # result save
+        folder_path = './results/' + setting + '/'
         if not os.path.exists(folder_path):
             os.makedirs(folder_path)
 
         mae, mse, rmse, mape, mspe, rse, corr = metric(preds, trues)
         print('mse:{}, mae:{}'.format(mse, mae))
+        
+        # Write the results to a file
+        f = open("result.txt", 'a')
+        f.write(setting + "  \n")
+        f.write('mse:{}, mae:{}, rse:{}, corr:{}'.format(mse, mae, rse, corr))
+        f.write('\n')
+        f.write('\n')
+        f.close()
 
-        np.save(folder_path+'metrics.npy', np.array([mae, mse, rmse, mape, mspe, rse, corr]))
+        # Save metrics as individual values
+        metrics = np.array([mae, mse, rmse, mape, mspe, rse, corr])
+        np.save(folder_path+'metrics.npy', metrics)
         np.save(folder_path+'pred.npy', preds)
         np.save(folder_path+'true.npy', trues)
-        
+
         return
 
     def predict(self, setting, load=False):
