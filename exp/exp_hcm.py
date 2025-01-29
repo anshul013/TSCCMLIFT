@@ -101,6 +101,26 @@ class Exp_HCM(Exp_Basic):
         model_optim = self._select_optimizer()
         criterion = self._select_criterion()
 
+        # Initialize clusters with all training data
+        print("Initializing clusters with training data...")
+        all_train_data = []
+        with torch.no_grad():
+            for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(train_loader):
+                batch_x = batch_x.float().to(self.device)
+                all_train_data.append(batch_x)
+        
+        full_data = torch.cat(all_train_data, dim=0)
+        self.model.initialize_clusters(full_data)
+        print("Clusters initialized.")
+
+        # Print model summary with actual input shape from data
+        print("\nModel Architecture:")
+        batch_size = self.args.batch_size
+        seq_len = self.args.seq_len
+        enc_in = self.args.enc_in  # number of input variables
+        summary(self.model, input_size=(batch_size, seq_len, enc_in), device=self.device)
+        print("\n")
+
         if self.args.use_amp:
             scaler = torch.cuda.amp.GradScaler()
 
@@ -148,8 +168,8 @@ class Exp_HCM(Exp_Basic):
             
             train_loss = np.average(train_loss)
             if not self.args.train_only:
-                vali_loss = self.vali(vali_data, vali_loader, criterion)
-                test_loss = self.vali(test_data, test_loader, criterion)
+                vali_mse, vali_loss, vali_mae = self.vali(vali_data, vali_loader)
+                test_mse, test_loss, test_mae = self.vali(test_data, test_loader)
 
                 print("Epoch: {0}, Steps: {1} | Train Loss: {2:.7f} Vali Loss: {3:.7f} Test Loss: {4:.7f}".format(
                     epoch + 1, train_steps, train_loss, vali_loss, test_loss))
