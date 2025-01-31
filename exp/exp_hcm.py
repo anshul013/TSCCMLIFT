@@ -201,7 +201,7 @@ class Exp_HCM(Exp_Basic):
         
         return self.model
 
-    def eval(self, setting, save_pred=True, inverse=False):
+    def test(self, setting, save_pred=True, inverse=False):
         print("\nEvaluation on test set...")
         test_data, test_loader = self._get_data(flag='test')
         
