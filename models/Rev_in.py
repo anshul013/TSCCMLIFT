@@ -55,7 +55,7 @@ class RevIN(nn.Module):
     def _denormalize(self, x):
         if self.affine:
             x = x - self.affine_bias
-            x = x / (self.affine_weight + self.eps*self.eps)
+            x = x / self.affine_weight
         x = x * self.stdev
         if self.subtract_last:
             x = x + self.last

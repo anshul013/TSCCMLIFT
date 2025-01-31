@@ -9,7 +9,6 @@ import torch
 import torch.nn as nn
 from torch import optim
 from torch.utils.data import DataLoader
-from torch.nn import DataParallel
 import os
 import time
 import json
@@ -49,6 +48,7 @@ class Exp_HCM(Exp_Basic):
 
     def _get_data(self, flag):
         data_set, data_loader = data_provider(self.args, flag)
+        print(flag, len(data_set))
         return data_set, data_loader
 
     def _select_optimizer(self):
@@ -63,50 +63,51 @@ class Exp_HCM(Exp_Basic):
         
         with torch.no_grad():
             for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(vali_loader):
-                pred, true = self._process_one_batch(
-                    vali_data, batch_x, batch_y)
-                loss = nn.MSELoss()(pred.detach().cpu(), true.detach().cpu())
+                batch_x = batch_x.float().to(self.device)
+                batch_y = batch_y.float().to(self.device)
                 
+                pred, true = self._process_one_batch(vali_data, batch_x, batch_y)
+                loss = nn.MSELoss()(pred, true)
                 total_loss.append(loss.item())
                 
                 batch_size = pred.shape[0]
                 instance_num += batch_size
                 
-                pred_np = pred.detach().cpu().numpy()
-                true_np = true.detach().cpu().numpy()
-                
-                batch_metrics = []
-                for j in range(batch_size):
-                    sample_metrics = metric(pred_np[j], true_np[j])
-                    batch_metrics.append(sample_metrics)
-                
-                # Convert to numpy array and sum
-                batch_metrics = np.array(batch_metrics).sum(axis=0)
-                metrics_all.append(batch_metrics)
+                # Calculate metrics on GPU
+                metrics = torch.stack([
+                    torch.mean(torch.abs(pred - true)),  # MAE
+                    torch.mean((pred - true) ** 2),  # MSE
+                    torch.sqrt(torch.mean((pred - true) ** 2)),  # RMSE
+                    torch.mean(torch.abs((pred - true) / true)),  # MAPE
+                    torch.mean((pred - true) ** 2 / true ** 2)  # MSPE
+                ]) * batch_size
+                metrics_all.append(metrics)
 
             total_loss = np.average(total_loss)
-            metrics_all = np.stack(metrics_all, axis=0)
-            metrics_mean = metrics_all.sum(axis=0) / instance_num
-            mae, mse, rmse, mape, mspe = metrics_mean
+            metrics_all = torch.stack(metrics_all, dim=0)
+            metrics_mean = metrics_all.sum(dim=0) / instance_num
+            mae, mse, rmse, mape, mspe = metrics_mean.tolist()
             
         self.model.train()
         return mse, total_loss, mae
 
     def train(self, setting):
+        print(f"\nTraining on device: {self.device}")
+        if torch.cuda.is_available():
+            print(f"GPU Memory allocated: {torch.cuda.memory_allocated()/1024**2:.2f} MB")
+        
         train_data, train_loader = self._get_data(flag='train')
         if not self.args.train_only:
             vali_data, vali_loader = self._get_data(flag='val')
             test_data, test_loader = self._get_data(flag='test')
-    
+
         path = os.path.join(self.args.checkpoints, setting)
         if not os.path.exists(path):
             os.makedirs(path)
-    
+
         time_now = time.time()
-    
         train_steps = len(train_loader)
         early_stopping = EarlyStopping(patience=self.args.patience, verbose=True)
-    
         model_optim = self._select_optimizer()
         criterion = nn.MSELoss()
 
@@ -134,13 +135,18 @@ class Exp_HCM(Exp_Basic):
         metrics = self.model.get_clustering_metrics()
         print("Initial clustering metrics:", metrics)
         
+        print("\nStart training: {} epochs".format(self.args.train_epochs))
+        
         for epoch in range(self.args.train_epochs):
             epoch_time = time.time()
+            self.model.train()
             train_loss = []
             
-            self.model.train()
             for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(train_loader):
                 model_optim.zero_grad()
+                
+                batch_x = batch_x.float().to(self.device)
+                batch_y = batch_y.float().to(self.device)
                 
                 pred, true = self._process_one_batch(train_data, batch_x, batch_y)
                 loss = criterion(pred, true)
@@ -149,13 +155,18 @@ class Exp_HCM(Exp_Basic):
                 loss.backward()
                 model_optim.step()
 
-            print("Epoch: {} cost time: {}".format(epoch + 1, time.time() - epoch_time))
+                if i % 100 == 0:
+                    print(f"\titr: {i:03d}, loss: {loss.item():.7f}")
+                    if torch.cuda.is_available():
+                        print(f"\tGPU Memory: {torch.cuda.memory_allocated()/1024**2:.2f} MB")
+
+            print("Epoch: {} cost time: {:.2f}s".format(epoch + 1, time.time() - epoch_time))
             
             train_loss = np.average(train_loss)
             if not self.args.train_only:
                 vali_mse, vali_loss, vali_mae = self.vali(vali_data, vali_loader)
                 test_mse, test_loss, test_mae = self.vali(test_data, test_loader)
-
+                
                 print("Epoch: {0}, Steps: {1} | Train Loss: {2:.7f} Vali Loss: {3:.7f} Test Loss: {4:.7f}".format(
                     epoch + 1, train_steps, train_loss, vali_loss, test_loss))
                 print("Vali MSE: {:.7f}, MAE: {:.7f}, Test MSE: {:.7f}, MAE: {:.7f}".format(
@@ -171,8 +182,10 @@ class Exp_HCM(Exp_Basic):
                 break
 
             adjust_learning_rate(model_optim, epoch+1, self.args)
-        
-        # Load best model
+            
+            if epoch % 5 == 0:
+                torch.cuda.empty_cache()
+    
         best_model_path = path + '/' + 'checkpoint.pth'
         # self.model.load_state_dict(torch.load(best_model_path))
 
@@ -188,7 +201,8 @@ class Exp_HCM(Exp_Basic):
         
         return self.model
 
-    def test(self, setting, save_pred=True, inverse=False):
+    def eval(self, setting, save_pred=True, inverse=False):
+        print("\nEvaluation on test set...")
         test_data, test_loader = self._get_data(flag='test')
         
         self.model.eval()
@@ -200,92 +214,58 @@ class Exp_HCM(Exp_Basic):
         
         with torch.no_grad():
             for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(test_loader):
-                pred, true = self._process_one_batch(
-                    test_data, batch_x, batch_y, inverse)
+                batch_x = batch_x.float().to(self.device)
+                batch_y = batch_y.float().to(self.device)
+                
+                pred, true = self._process_one_batch(test_data, batch_x, batch_y, inverse)
+                
                 batch_size = pred.shape[0]
                 instance_num += batch_size
-                batch_metric = np.array(metric(pred.detach().cpu().numpy(), true.detach().cpu().numpy())) * batch_size
-                metrics_all.append(batch_metric)
+                
+                # Calculate metrics on GPU
+                metrics = torch.stack([
+                    torch.mean(torch.abs(pred - true)),
+                    torch.mean((pred - true) ** 2),
+                    torch.sqrt(torch.mean((pred - true) ** 2)),
+                    torch.mean(torch.abs((pred - true) / true)),
+                    torch.mean((pred - true) ** 2 / true ** 2)
+                ]) * batch_size
+                metrics_all.append(metrics)
+                
                 if save_pred:
-                    preds.append(pred.detach().cpu().numpy())
-                    trues.append(true.detach().cpu().numpy())
+                    preds.append(pred)
+                    trues.append(true)
 
-        metrics_all = np.stack(metrics_all, axis=0)
-        metrics_mean = metrics_all.sum(axis=0) / instance_num
+        metrics_all = torch.stack(metrics_all, dim=0)
+        metrics_mean = metrics_all.sum(dim=0) / instance_num
+        mae, mse, rmse, mape, mspe = metrics_mean.tolist()
 
-        # Save results
         folder_path = './results/' + setting +'/'
         if not os.path.exists(folder_path):
             os.makedirs(folder_path)
 
-        mae, mse, rmse, mape, mspe = metrics_mean
-        print('mse:{}, mae:{}'.format(mse, mae))
+        print('Evaluation metrics - MSE: {}, MAE: {}'.format(mse, mae))
 
-        np.save(folder_path+'metrics.npy', np.array([mae, mse, rmse, mape, mspe]))
         if save_pred:
-            preds = np.concatenate(preds, axis=0)
-            trues = np.concatenate(trues, axis=0)
-            np.save(folder_path+'pred.npy', preds)
-            np.save(folder_path+'true.npy', trues)
+            preds = torch.cat(preds, dim=0)
+            trues = torch.cat(trues, dim=0)
+            np.save(folder_path+'metrics.npy', np.array([mae, mse, rmse, mape, mspe]))
+            np.save(folder_path+'pred.npy', preds.cpu().numpy())
+            np.save(folder_path+'true.npy', trues.cpu().numpy())
         return
 
     def _process_one_batch(self, dataset_object, batch_x, batch_y, inverse=False):
-        batch_x = batch_x.float().to(self.device)
-        batch_y = batch_y.float().to(self.device)
-        
-        # Get the actual prediction length (removing label_len)
         pred_len = self.args.pred_len
         
         # Forward pass through model
         outputs = self.model(batch_x)
+        batch_y = batch_y[:, -pred_len:, :]
         
-        # Take only the prediction part of batch_y (removing label_len portion)
-        batch_y = batch_y[:, -pred_len:, :]  # Take last pred_len timesteps
+        if outputs.shape[1] != pred_len:
+            outputs = outputs[:, :pred_len, :]
         
         if inverse:
-            outputs = dataset_object.inverse_transform(outputs)
-            batch_y = dataset_object.inverse_transform(batch_y)
+            outputs = dataset_object.inverse_transform(outputs.cpu()).to(self.device)
+            batch_y = dataset_object.inverse_transform(batch_y.cpu()).to(self.device)
         
-        return outputs, batch_y
-
-    def eval(self, setting, save_pred=True, inverse=False):
-        # Use data_provider instead of Dataset_MTS
-        data_set, data_loader = self._get_data(flag='test')
-        
-        self.model.eval()
-        
-        preds = []
-        trues = []
-        metrics_all = []
-        instance_num = 0
-        
-        with torch.no_grad():
-            for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(data_loader):
-                pred, true = self._process_one_batch(
-                    data_set, batch_x, batch_y, inverse)
-                batch_size = pred.shape[0]
-                instance_num += batch_size
-                batch_metric = np.array(metric(pred.detach().cpu().numpy(), true.detach().cpu().numpy())) * batch_size
-                metrics_all.append(batch_metric)
-                if save_pred:
-                    preds.append(pred.detach().cpu().numpy())
-                    trues.append(true.detach().cpu().numpy())
-
-        metrics_all = np.stack(metrics_all, axis=0)
-        metrics_mean = metrics_all.sum(axis=0) / instance_num
-
-        # Save results
-        folder_path = './results/' + setting +'/'
-        if not os.path.exists(folder_path):
-            os.makedirs(folder_path)
-
-        mae, mse, rmse, mape, mspe = metrics_mean
-        print('Evaluation metrics - MSE: {}, MAE: {}'.format(mse, mae))
-
-        np.save(folder_path+'metrics.npy', np.array([mae, mse, rmse, mape, mspe]))
-        if save_pred:
-            preds = np.concatenate(preds, axis=0)
-            trues = np.concatenate(trues, axis=0)
-            np.save(folder_path+'pred.npy', preds)
-            np.save(folder_path+'true.npy', trues)
-        return 
+        return outputs, batch_y 

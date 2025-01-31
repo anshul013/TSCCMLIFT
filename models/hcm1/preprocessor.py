@@ -7,7 +7,7 @@ from sklearn.metrics import silhouette_score
 
 class HardClusterAssigner(nn.Module):
     """Module for hard clustering of channels"""
-    def __init__(self, n_vars, num_clusters, method='kmeans', device='cpu', random_state=42):
+    def __init__(self, n_vars, num_clusters, method='kmeans', device='cuda', random_state=42):
         super().__init__()
         self.n_vars = n_vars
         self.num_clusters = num_clusters
@@ -23,27 +23,24 @@ class HardClusterAssigner(nn.Module):
         else:
             raise ValueError(f"Unknown clustering method: {method}")
         
-        # Initialize cluster assignments
-        self.register_buffer('cluster_assignments', torch.zeros(n_vars, dtype=torch.long))
+        # Initialize cluster assignments on GPU
+        self.register_buffer('cluster_assignments', 
+                           torch.zeros(n_vars, dtype=torch.long, device=device))
         self.fitted = False
         self.inertia = None
         self.silhouette = None
         
     def extract_features(self, x):
-        """Extract statistical features for clustering"""
-        if torch.is_tensor(x):
-            x = x.detach().cpu().numpy()
-            
+        """Extract features for clustering"""
+        # Keep computations on GPU where possible
         features = []
-        for channel in range(x.shape[2]):
-            channel_data = x[:, :, channel]
+        x_numpy = x.cpu().numpy()  # Only convert to numpy for sklearn
+        
+        for i in range(self.n_vars):
+            channel_data = x_numpy[:, :, i]
             features.append([
                 np.mean(channel_data),
                 np.std(channel_data),
-                np.percentile(channel_data, 25),
-                np.percentile(channel_data, 75),
-                np.max(channel_data),
-                np.min(channel_data),
                 np.mean(np.abs(np.diff(channel_data, axis=1)))
             ])
         return np.array(features)
@@ -52,7 +49,11 @@ class HardClusterAssigner(nn.Module):
         """Fit clustering on data"""
         features = self.extract_features(x)
         cluster_idx = self.clusterer.fit_predict(features)
-        self.cluster_assignments = torch.tensor(cluster_idx, device=self.device)
+        
+        # Move cluster assignments to GPU
+        self.cluster_assignments = torch.tensor(
+            cluster_idx, device=self.device, dtype=torch.long)
+        
         self.inertia = self.clusterer.inertia_
         if self.n_vars > self.num_clusters:
             self.silhouette = silhouette_score(features, cluster_idx)
