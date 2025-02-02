@@ -100,9 +100,10 @@ class TSMixerBlock(nn.Module):
         # self.rev_norm = RevIN(num_features=self.channels)
         
         # Output projection
-        self.output_linear_layers = nn.ModuleList([
-            nn.Linear(self.in_len, self.pred_len) for _ in range(self.channels)
-        ])
+        # self.output_linear_layers = nn.ModuleList([
+        #     nn.Linear(self.in_len, self.pred_len) for _ in range(self.channels)
+        # ])
+        self.output_linear_layers = nn.Linear(self.in_len, self.pred_len)
 
     def forward(self, x):
         # Verify device
@@ -120,11 +121,11 @@ class TSMixerBlock(nn.Module):
                        dtype=x.dtype, device=x.device)
         x = torch.swapaxes(x, 1, 2)
         
-        for c in range(self.channels):
-            if not self.output_linear_layers[c].weight.is_cuda:
-                print(f"Warning: Output layer {c} is not on GPU")
-            y[:, c, :] = self.output_linear_layers[c](x[:, c, :])
-        
+        # for c in range(self.channels):
+        #     if not self.output_linear_layers[c].weight.is_cuda:
+        #         print(f"Warning: Output layer {c} is not on GPU")
+        #     y[:, c, :] = self.output_linear_layers[c](x[:, c, :])
+        y = self.output_linear_layers(x.clone())
         y = torch.swapaxes(y, 1, 2)
         return y 
     
@@ -165,9 +166,10 @@ class TMixerBlock(nn.Module):
         # self.rev_norm = RevIN(num_features=self.channels)
         
         # Output projection
-        self.output_linear_layers = nn.ModuleList([
-            nn.Linear(self.in_len, self.pred_len) for _ in range(self.channels)
-        ])
+        # self.output_linear_layers = nn.ModuleList([
+        #     nn.Linear(self.in_len, self.pred_len) for _ in range(self.channels)
+        # ])
+        self.output_linear_layers = nn.Linear(self.in_len, self.pred_len)
 
     def forward(self, x):
         # Verify device
@@ -185,10 +187,10 @@ class TMixerBlock(nn.Module):
                        dtype=x.dtype, device=x.device)
         x = torch.swapaxes(x, 1, 2)
         
-        for c in range(self.channels):
-            if not self.output_linear_layers[c].weight.is_cuda:
-                print(f"Warning: Output layer {c} is not on GPU")
-            y[:, c, :] = self.output_linear_layers[c](x[:, c, :])
-        
+        # for c in range(self.channels):
+        #     if not self.output_linear_layers[c].weight.is_cuda:
+        #         print(f"Warning: Output layer {c} is not on GPU")
+        #     y[:, c, :] = self.output_linear_layers[c](x[:, c, :])
+        y = self.output_linear_layers(x.clone())
         y = torch.swapaxes(y, 1, 2)
         return y 
